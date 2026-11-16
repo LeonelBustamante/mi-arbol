@@ -2276,3 +2276,80 @@ dd {
     max-width: 100%;
   }
 }
+
+/* Fixed card geometry keeps the shared family connectors clear of every card. */
+.person-node {
+  width: 248px;
+  height: 152px;
+  min-height: 152px;
+  padding: 18px 15px;
+}
+.person-node .node-copy {
+  min-width: 0;
+  flex: 1;
+}
+.person-node .node-copy strong {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.person-node .node-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.person-node .react-flow__handle:not(.connectable) {
+  opacity: 0;
+}
+.kinship-line {
+  pointer-events: none;
+}
+.tree-legend {
+  position: absolute;
+  right: 20px;
+  bottom: 74px;
+  z-index: 4;
+  display: flex;
+  gap: 18px;
+  padding: 10px 14px;
+  border: 1px solid #e0e6da;
+  border-radius: 10px;
+  background: #ffffffed;
+  color: #738369;
+  font-size: 11px;
+}
+.tree-legend span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tree-legend i {
+  display: block;
+  width: 23px;
+  height: 0;
+  border-top: 2px solid #b2916d;
+}
+.tree-legend .legend-family {
+  height: 10px;
+  width: 19px;
+  border-color: #829b78;
+  border-left: 2px solid #829b78;
+  border-right: 2px solid #829b78;
+}
+.tree-legend.with-minimap {
+  right: 240px;
+}
+@media (max-width: 720px) {
+  .react-flow__minimap {
+    display: none;
+  }
+  .tree-legend,
+  .tree-legend.with-minimap {
+    right: 12px;
+    bottom: 74px;
+    font-size: 10px;
+    padding: 8px 10px;
+    gap: 12px;
+  }
+}

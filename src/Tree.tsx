@@ -11,9 +11,18 @@ import {
   type NodeProps,
   type Node,
   type Connection,
+  type Edge,
+  type EdgeProps,
 } from '@xyflow/react';
 import { LocateFixed, Search, SlidersHorizontal, Sprout, ArrowUpRight, X } from 'lucide-react';
-import { colors, date, layout, type TreePerson, type Relationship, type Person } from './model';
+import { colors, date, layout, type TreePerson, type Relationship } from './model';
+import {
+  CARD_WIDTH,
+  CARD_HEIGHT,
+  drawFamily,
+  drawPartner,
+  type ConnectionDrawing,
+} from './tree-layout';
 type Data = {
   person: TreePerson;
   color: string;
@@ -82,6 +91,31 @@ function PersonNode({ data }: NodeProps<Node<Data>>) {
   );
 }
 const nodeTypes = { person: PersonNode };
+type KinshipData = { drawing: ConnectionDrawing; partner?: boolean; description: string };
+function KinshipEdge({ data }: EdgeProps<Edge<KinshipData>>) {
+  if (!data) return null;
+  return (
+    <g className={data.partner ? 'kinship-line partner-line' : 'kinship-line family-line'}>
+      <title>{data.description}</title>
+      {data.drawing.paths.map((part, i) => (
+        <path
+          key={i}
+          d={part.path}
+          fill="none"
+          stroke={data.partner ? '#b2916d' : '#829b78'}
+          strokeWidth={2}
+          strokeDasharray={part.hypothesis ? '6 5' : undefined}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      ))}
+      {data.drawing.junction && (
+        <circle cx={data.drawing.junction.x} cy={data.drawing.junction.y} r={3} fill="#829b78" />
+      )}
+    </g>
+  );
+}
+const edgeTypes = { kinship: KinshipEdge };
 export default function Tree(props: {
   people: TreePerson[];
   relationships: Relationship[];
@@ -124,6 +158,7 @@ function TreeCanvas({
       people.map((p) => ({
         id: p.id,
         type: 'person',
+        style: { width: CARD_WIDTH, height: CARD_HEIGHT },
         position: graph.positions.get(p.id)!,
         hidden: generation !== 'all' && graph.levels.get(p.id) !== Number(generation),
         data: {
@@ -148,30 +183,98 @@ function TreeCanvas({
       })),
     [people, graph, privateView, onSelect, generation],
   );
-  const edges = useMemo(
-    () =>
-      relationships
-        .filter((r) => people.some((p) => p.id === r.from) && people.some((p) => p.id === r.to))
-        .map((r) => ({
-          id: r.id,
-          source: r.from,
-          target: r.to,
-          sourceHandle: r.type === 'partner' ? 'partner-from' : 'child',
-          targetHandle: r.type === 'partner' ? 'partner-to' : 'parent',
-          type: 'smoothstep',
-          style: {
-            stroke: r.type === 'partner' ? '#bfa886' : '#a7b6a4',
-            strokeWidth: 1.5,
-            strokeDasharray: r.certainty === 'hypothesis' ? '5 4' : undefined,
+  const edges = useMemo(() => {
+    const visible = relationships.filter(
+      (r) => graph.positions.has(r.from) && graph.positions.has(r.to),
+    );
+    const result: Edge<KinshipData>[] = [];
+    for (const r of visible.filter((r) => r.type === 'partner')) {
+      const [left, right] = [r.from, r.to].sort(
+        (a, b) => graph.positions.get(a)!.x - graph.positions.get(b)!.x,
+      );
+      result.push({
+        id: r.id,
+        source: left,
+        target: right,
+        sourceHandle: 'partner-from',
+        targetHandle: 'partner-to',
+        type: 'kinship',
+        ariaLabel: 'Pareja registrada',
+        data: {
+          partner: true,
+          description: 'Pareja registrada',
+          drawing: {
+            paths: [
+              {
+                path: drawPartner(graph.positions.get(left)!, graph.positions.get(right)!),
+                hypothesis: r.certainty === 'hypothesis',
+              },
+            ],
           },
-          label: privateView && r.certainty === 'hypothesis' ? 'Creo que...' : undefined,
-        })),
-    [people, relationships, privateView],
-  );
+        },
+      });
+    }
+    const families = new Map<
+      string,
+      { parents: string[]; children: { id: string; hypothesis: boolean }[] }
+    >();
+    for (const child of people) {
+      const incoming = visible.filter((r) => r.type !== 'partner' && r.to === child.id);
+      if (!incoming.length) continue;
+      const parents = [...new Set(incoming.map((r) => r.from))].sort(
+        (a, b) => graph.positions.get(a)!.x - graph.positions.get(b)!.x,
+      );
+      const key = JSON.stringify([parents, graph.levels.get(child.id)]);
+      if (!families.has(key)) families.set(key, { parents, children: [] });
+      families.get(key)!.children.push({
+        id: child.id,
+        hypothesis: incoming.some((r) => r.certainty === 'hypothesis'),
+      });
+    }
+    for (const [key, family] of families) {
+      const points = family.parents.map((id) => graph.positions.get(id)!);
+      const couple =
+        points.length === 2 &&
+        points[0].y === points[1].y &&
+        Math.abs(points[0].x - points[1].x) <= CARD_WIDTH + 56 + 1 &&
+        visible.some(
+          (r) =>
+            r.type === 'partner' &&
+            r.certainty !== 'hypothesis' &&
+            family.parents.includes(r.from) &&
+            family.parents.includes(r.to),
+        );
+      result.push({
+        id: `family:${key}`,
+        source: family.parents[0],
+        target: family.children[0].id,
+        sourceHandle: 'child',
+        targetHandle: 'parent',
+        type: 'kinship',
+        ariaLabel: 'Padres e hijos registrados',
+        data: {
+          description: 'Padres e hijos registrados',
+          drawing: drawFamily(
+            points,
+            family.children.map((c) => ({
+              point: graph.positions.get(c.id)!,
+              hypothesis: c.hypothesis,
+            })),
+            couple,
+          ),
+        },
+      });
+    }
+    return result;
+  }, [people, relationships, graph]);
+  const fitKey = nodes
+    .map((n) => `${n.id}:${n.position.x}:${n.position.y}`)
+    .sort()
+    .join('|');
   useEffect(() => {
-    const timer = setTimeout(() => flow.fitView({ padding: 0.25, duration: 400 }), 100);
+    const timer = setTimeout(() => flow.fitView({ padding: 0.25, maxZoom: 1, duration: 400 }), 100);
     return () => clearTimeout(timer);
-  }, [people.length, generation, flow]);
+  }, [fitKey, generation, flow]);
   const matches = search
     ? people.filter((p) =>
         p.fullName.toLocaleLowerCase('es').includes(search.toLocaleLowerCase('es')),
@@ -229,7 +332,7 @@ function TreeCanvas({
           className="icon-button center-button"
           title="Centrar árbol"
           aria-label="Centrar árbol"
-          onClick={() => flow.fitView({ padding: 0.25, duration: 500 })}
+          onClick={() => flow.fitView({ padding: 0.25, maxZoom: 1, duration: 500 })}
         >
           <LocateFixed size={19} />
         </button>
@@ -255,6 +358,7 @@ function TreeCanvas({
           nodes={nodes}
           edges={edges}
           nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
           nodesDraggable={false}
           nodesConnectable={privateView}
           onConnect={(connection: Connection) => {
@@ -272,6 +376,7 @@ function TreeCanvas({
           }}
           elementsSelectable={false}
           fitView
+          fitViewOptions={{ padding: 0.25, maxZoom: 1 }}
           minZoom={0.15}
           maxZoom={1.6}
           proOptions={{ hideAttribution: false }}
@@ -299,6 +404,17 @@ function TreeCanvas({
             )}
           </div>
         )}
+        <div
+          className={`tree-legend ${people.length > 8 ? 'with-minimap' : ''}`}
+          aria-label="Referencias de los vínculos"
+        >
+          <span>
+            <i className="legend-couple" /> Pareja
+          </span>
+          <span>
+            <i className="legend-family" /> Padres e hijos
+          </span>
+        </div>
         <div className="canvas-caption">
           <span className="live-dot" />
           {privateView ? 'Vista del administrador' : 'Vista pública'}

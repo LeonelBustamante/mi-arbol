@@ -89,8 +89,12 @@ npx firebase deploy --only firestore --project mi-arbol-19103
 
 La web se publicó desde la rama `gh-pages`, con archivos compilados localmente y `.nojekyll`. GitHub bloquea el workflow de CI por la facturación de su cuenta, pero permitió la publicación nativa de Pages. No hace falta habilitar Blaze ni contratar runners para la publicación actual.
 
-Telegram todavía no está conectado: el propietario no tiene un bot creado. Para aprobar o rechazar desde Telegram hará falta un servicio de confianza que guarde la clave del bot fuera del frontend y autorice exclusivamente al propietario. El panel web ya permite revisar y aprobar.
+Por elección del propietario, no se envían notificaciones ni se utiliza Telegram. La revisión y aprobación se realizan exclusivamente desde el panel web.
 
 El administrador puede exportar JSON desde el panel. Ese respaldo incluye datos privados y fotos: guardarlo fuera del repositorio público. Eliminar una persona borra sus proyecciones y vínculos, pero las propuestas, auditorías y respaldos pueden conservar versiones anteriores; revisar esos registros ante solicitudes de eliminación.
 
 Referencias: [plan Spark](https://firebase.google.com/docs/projects/billing/firebase-pricing-plans), [reglas](https://firebase.google.com/docs/firestore/security/rules-conditions), [transacciones](https://firebase.google.com/docs/firestore/manage-data/transactions), [App Check](https://firebase.google.com/docs/app-check/web/recaptcha-enterprise-provider).
+
+## Dibujo del árbol
+
+Las parejas se conectan horizontalmente y los hijos comparten una bajada familiar. Los hermanos se agrupan bajo sus progenitores y los abuelos se alinean con su propio hijo dentro de una pareja. Las tarjetas conservan dimensiones estables para que los conectores no las atraviesen; las parejas no adyacentes se dibujan por arriba. Los co-progenitores pueden compartir una fila sin inventar un vínculo de pareja. Al cambiar un parentesco se vuelve a encuadrar la distribución. Esta representación no modifica los datos ni crea relaciones nuevas.

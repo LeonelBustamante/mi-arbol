@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "tsc --noEmit && vite build",
-    "test": "vitest run tests/domain.test.ts tests/photos.test.ts tests/draft.test.ts tests/tree.test.tsx tests/admin.test.tsx",
+    "test": "vitest run tests/domain.test.ts tests/photos.test.ts tests/draft.test.ts tests/tree.test.tsx tests/admin.test.tsx tests/tree-layout.test.ts",
     "test:emulators": "node scripts/test-emulators.mjs",
     "emulators": "firebase emulators:start --only auth,firestore --project demo-mi-arbol",
     "format": "prettier --write --ignore-unknown src functions/src scripts tests *.ts *.json *.rules .github/workflows/*.yml README.md",

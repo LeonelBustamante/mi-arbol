@@ -29,10 +29,14 @@ Se trasladaron y contaron 47 documentos desde el emulador, en una transacción s
 
 Antes de activar App Check se comprobó por REST que las colecciones públicas entregaban solo sus campos previstos y que personas privadas y aportes devolvían 403. App Check de Firestore quedó en `ENFORCED`. Google confirmó `billingEnabled: false`.
 
-Las pruebas completas contra reglas reales y React están aprobadas. No se completó la comprobación visual del dominio final, del teléfono ni el inicio de sesión real del propietario. Telegram no está conectado: falta crear el bot.
+Las pruebas completas contra reglas reales y React están aprobadas. No se completó la comprobación visual del dominio final, del teléfono ni el inicio de sesión real del propietario. Telegram se descartó por decisión del propietario; no hay notificaciones.
 
 Los datos locales originales y las copias automáticas permanecen conservados. Ningún dato familiar ni foto se incluyó en las ramas de código o archivos estáticos de Pages.
 
 ## Corrección de App Check
 
 Se diagnosticó un 403 de intercambio de tokens porque `firebaseappcheck.googleapis.com` estaba deshabilitada. Se habilitó la API, se completó su identidad de servicio y se volvió a registrar la misma clave reCAPTCHA. Se conservaron enforcement y las reglas de Firestore. Tras recargar, Chrome mostró los cinco nodos y los tres vínculos publicados sin el error de carga; el formulario que estaba completando el usuario se preservó.
+
+## Conexiones genealógicas
+
+Se reemplazó la distribución por identificadores por grupos familiares y alineación según ascendencia. Nuevas líneas de pareja y ramas compartidas para hijos, con dimensiones de tarjetas estables. Se aprobaron 10 pruebas dirigidas de distribución, recorrido de líneas y apertura de nodos (7 nuevas y 3 existentes). Compilación productiva y TypeScript correctos. No se modificó la base de datos.
