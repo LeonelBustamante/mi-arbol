@@ -1,1 +1,20 @@
-{ "indexes": [], "fieldOverrides": [] }
+{
+  "indexes": [],
+  "fieldOverrides": [
+    {
+      "collectionGroup": "submissionPhotos",
+      "fieldPath": "dataUrl",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "personPhotos",
+      "fieldPath": "dataUrl",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "publicPersonPhotos",
+      "fieldPath": "dataUrl",
+      "indexes": []
+    }
+  ]
+}

@@ -8,7 +8,6 @@ import {
   UserRoundCheck,
   FilePenLine,
   History,
-  Mail,
   Trash2,
 } from 'lucide-react';
 import { collection, getDocs } from 'firebase/firestore';
@@ -20,7 +19,6 @@ const tabs = [
   ['submissions', 'Aportes', FilePenLine],
   ['privacy', 'Privacidad', Trash2],
   ['history', 'Historial', History],
-  ['mail', 'Correos', Mail],
 ] as const;
 function time(value: any) {
   return value?.toDate ? value.toDate().toLocaleString('es-AR') : 'Sin fecha';
@@ -64,16 +62,9 @@ export default function Admin({
   const submissions = useRows('submissions');
   const privacy = useRows('privacyRequests');
   const history = useRows('auditLogs', tab === 'history');
-  const mail = useRows('mailOutbox', tab === 'mail');
   const rows =
-    tab === 'submissions'
-      ? submissions.rows
-      : tab === 'privacy'
-        ? privacy.rows
-        : tab === 'history'
-          ? history.rows
-          : mail.rows;
-  const readError = [submissions, privacy, history, mail].find((r) => r.error)?.error;
+    tab === 'submissions' ? submissions.rows : tab === 'privacy' ? privacy.rows : history.rows;
+  const readError = [submissions, privacy, history].find((r) => r.error)?.error;
   async function action(name: string, data: unknown, key: string) {
     setBusy(key);
     try {
@@ -233,7 +224,7 @@ export default function Admin({
                   {statusLabel(row.status || row.role || 'Registro')}
                 </span>
                 <div className="row-actions">
-                  {['submissions', 'privacy', 'history', 'mail'].includes(tab) && (
+                  {['submissions', 'privacy', 'history'].includes(tab) && (
                     <button className="button small secondary" onClick={() => view(row)}>
                       Revisar
                     </button>
@@ -307,7 +298,7 @@ export default function Admin({
                 </div>
                 <h3>Parentescos propuestos</h3>
                 <p className="muted">
-                  Reemplazan los padres y parejas registrados para esta persona.
+                  En las correcciones, los parentescos vacíos conservan los vínculos actuales.
                 </p>
                 <dl>
                   {Object.entries(selected.links || {})

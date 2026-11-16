@@ -1,22 +1,158 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    function signedIn() { return request.auth != null; }
-    function role() { return get(/databases/$(database)/documents/members/$(request.auth.uid)).data.role; }
-    function admin() { return signedIn() && request.auth.token.email == 'aleobustamante@gmail.com' && request.auth.token.email_verified == true && request.auth.token.firebase.sign_in_provider == 'google.com' && role() == 'admin'; }
-    match /publicPersonPhotos/{id} { allow read: if true; }
-    match /personPhotos/{id} { allow read: if admin(); }
-    match /submissionPhotos/{id} { allow read: if admin(); }
-    match /publicPersons/{id} { allow read: if true; }
-    match /publicRelationships/{id} { allow read: if true; }
-    match /members/{uid} { allow read: if admin() || (signedIn() && request.auth.uid == uid); }
-    match /persons/{id} { allow read: if admin(); }
-    match /relationships/{id} { allow read: if admin(); }
-    match /submissions/{id} { allow read: if admin(); }
-    match /privacyRequests/{id} { allow read: if admin(); }
+    function owner() {
+      return request.auth != null && request.auth.token.email == 'aleobustamante@gmail.com'
+        && request.auth.token.email_verified == true
+        && request.auth.token.firebase.sign_in_provider == 'google.com';
+    }
+    function admin() { return owner() && get(/databases/$(database)/documents/members/$(request.auth.uid)).data.role == 'admin'; }
+    function text(v, max) { return v is string && v.size() <= max; }
+    function identifier(v) { return v is string && v.matches('^[a-zA-Z0-9_-]{1,100}$'); }
+    function uuid(v) { return v is string && v.matches('^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$'); }
+    function date(v) { return text(v,10) && (v == '' || v.matches('^[0-9]{4}(-[0-9]{2})?(-[0-9]{2})?$')); }
+    function certainty(v) { return v in ['confirmed','hypothesis']; }
+    function person(p) {
+      return p.keys().hasAll(['fullName','birthDate','birthPlace','deathDate','deathPlace','deceased','observations','sources','branch','certainty'])
+        && p.keys().hasOnly(['fullName','birthDate','birthPlace','deathDate','deathPlace','deceased','observations','sources','branch','certainty'])
+        && text(p.fullName,160) && p.fullName.size() >= 2 && date(p.birthDate) && date(p.deathDate)
+        && text(p.birthPlace,200) && text(p.deathPlace,200) && p.deceased is bool
+        && text(p.observations,5000) && text(p.sources,3000) && certainty(p.certainty)
+        && (p.branch == null || p.branch in ['Hecht','Elkin','Berger','Feldman','Bavor','Pennese','Posternak','Bustamante']);
+    }
+    function publicLink(id) { return id == '' || (identifier(id) && exists(/databases/$(database)/documents/publicPersons/$(id))); }
+    function links(l) {
+      return l.keys().hasAll(['father','mother','partner','fatherCertainty','motherCertainty','partnerCertainty'])
+        && l.keys().hasOnly(['father','mother','partner','fatherCertainty','motherCertainty','partnerCertainty'])
+        && publicLink(l.father) && publicLink(l.mother) && publicLink(l.partner)
+        && certainty(l.fatherCertainty) && certainty(l.motherCertainty) && certainty(l.partnerCertainty);
+    }
+    function photo(p,id) { return p.keys().hasOnly(['id','dataUrl']) && p.id == id && text(p.dataUrl,180000) && p.dataUrl.size() >= 64 && p.dataUrl.matches('^data:image/jpeg;base64,[A-Za-z0-9+/=]+$'); }
+    function contributor(p) { return p.keys().hasOnly(['displayName','email','identityVerified']) && text(p.displayName,160) && text(p.email,254) && p.identityVerified == false; }
+    function pending(s,id) {
+      return uuid(id) && s.requestId == id && s.status == 'pending' && s.identityVerified == false
+        && contributor(s.submittedBy) && s.submittedAt == request.time && s.hasPhoto is bool
+        && s.reviewedBy == null && s.reviewedAt == null;
+    }
+    function linkedReceipt(id,name) {
+      let r = getAfter(/databases/$(database)/documents/publicReceipts/$(id)).data;
+      let l = getAfter(/databases/$(database)/documents/publicLimits/$(name)).data;
+      return !exists(/databases/$(database)/documents/publicReceipts/$(id)) && r.id == id && r.collection == name && l.requestId == id;
+    }
+    function graphEdit() {
+      let next = getAfter(/databases/$(database)/documents/system/graph).data.version;
+      return next == (exists(/databases/$(database)/documents/system/graph) ? get(/databases/$(database)/documents/system/graph).data.version : 0) + 1;
+    }
+    match /members/{uid} {
+      allow get: if admin() || (request.auth != null && request.auth.uid == uid);
+      allow list: if admin();
+      // Only the fixed, verified Google owner can initialize their own role.
+      allow create: if owner() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['uid','email','role'])
+        && request.resource.data.uid == uid && request.resource.data.email == 'aleobustamante@gmail.com' && request.resource.data.role == 'admin';
+    }
+    match /publicPersons/{id} {
+      allow read: if true;
+      allow create, update: if admin() && graphEdit() && request.resource.data.keys().hasOnly(['id','fullName','birthDate'])
+        && request.resource.data.id == id && text(request.resource.data.fullName,160) && date(request.resource.data.birthDate);
+      allow delete: if admin() && graphEdit();
+    }
+    match /publicPersonVersions/{id} {
+      allow read: if true;
+      allow create, update: if admin() && graphEdit() && request.resource.data.keys().hasOnly(['revision']) && request.resource.data.revision is int && request.resource.data.revision >= 1;
+      allow delete: if admin() && graphEdit();
+    }
+    match /publicRelationships/{id} {
+      allow read: if true;
+      allow create, update: if admin() && graphEdit() && request.resource.data.keys().hasOnly(['id','from','to','type'])
+        && request.resource.data.id == id && identifier(request.resource.data.from) && identifier(request.resource.data.to)
+        && request.resource.data.type in ['father','mother','partner'];
+      allow delete: if admin() && graphEdit();
+    }
+    match /publicPersonPhotos/{id} {
+      allow read: if true;
+      allow create, update: if admin() && graphEdit() && photo(request.resource.data,id);
+      allow delete: if admin() && graphEdit();
+    }
+    match /personPhotos/{id} {
+      allow read: if admin();
+      allow create, update: if admin() && graphEdit() && photo(request.resource.data,id);
+      allow delete: if admin() && graphEdit();
+    }
+    match /persons/{id} {
+      allow read: if admin();
+      allow write: if admin() && graphEdit();
+    }
+    match /relationships/{id} {
+      allow read: if admin();
+      allow write: if admin() && graphEdit();
+    }
+    match /submissions/{id} {
+      allow read: if admin();
+      allow create: if pending(request.resource.data,id)
+        && request.resource.data.keys().hasOnly(['requestId','kind','personId','baseRevision','person','links','submittedBy','identityVerified','status','submittedAt','hasPhoto','reviewedBy','reviewedAt'])
+        && person(request.resource.data.person) && links(request.resource.data.links)
+        && request.resource.data.submittedBy.displayName.size() >= 2
+        && (request.resource.data.kind == 'new' && !('personId' in request.resource.data) && !('baseRevision' in request.resource.data)
+          || request.resource.data.kind == 'correction' && identifier(request.resource.data.personId)
+            && request.resource.data.baseRevision == get(/databases/$(database)/documents/publicPersonVersions/$(request.resource.data.personId)).data.revision)
+        && (!request.resource.data.hasPhoto || photo(getAfter(/databases/$(database)/documents/submissionPhotos/$(id)).data,id))
+        && linkedReceipt(id,'submissions');
+      allow update: if admin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','reason','reviewedBy','reviewedAt'])
+        && resource.data.status == 'pending' && request.resource.data.status in ['approved','rejected']
+        && text(request.resource.data.reason,1000) && request.resource.data.reviewedBy == request.auth.uid && request.resource.data.reviewedAt == request.time;
+      allow delete: if admin();
+    }
+    match /submissionPhotos/{id} {
+      allow read: if admin();
+      allow create: if photo(request.resource.data,id)
+        && getAfter(/databases/$(database)/documents/submissions/$(id)).data.submittedAt == request.time
+        && getAfter(/databases/$(database)/documents/submissions/$(id)).data.hasPhoto == true
+        && linkedReceipt(id,'submissions');
+      allow delete: if admin();
+    }
+    match /privacyRequests/{id} {
+      allow read: if admin();
+      allow create: if pending(request.resource.data,id) && request.resource.data.hasPhoto == false
+        && request.resource.data.keys().hasOnly(['requestId','type','message','submittedBy','identityVerified','status','submittedAt','hasPhoto','reviewedBy','reviewedAt'])
+        && request.resource.data.type in ['correction','deletion'] && text(request.resource.data.message,3000) && request.resource.data.message.size() >= 10
+        && linkedReceipt(id,'privacyRequests');
+      allow update: if admin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','resolution','reviewedBy','reviewedAt'])
+        && resource.data.status == 'pending' && request.resource.data.status == 'resolved' && text(request.resource.data.resolution,3000)
+        && request.resource.data.resolution.size() >= 10 && request.resource.data.reviewedBy == request.auth.uid && request.resource.data.reviewedAt == request.time;
+      allow delete: if admin();
+    }
+    match /publicReceipts/{id} {
+      allow get: if uuid(id);
+      allow create: if uuid(id) && request.resource.data.keys().hasOnly(['id','collection','fingerprint']) && request.resource.data.id == id
+        && request.resource.data.fingerprint is string && request.resource.data.fingerprint.matches('^[a-f0-9]{64}$')
+        && request.resource.data.collection in ['submissions','privacyRequests']
+        && getAfter(/databases/$(database)/documents/$(request.resource.data.collection)/$(id)).data.submittedAt == request.time
+        && linkedReceipt(id,request.resource.data.collection);
+    }
+    match /publicLimits/{name} {
+      allow get: if name in ['submissions','privacyRequests'];
+      allow create, update: if name in ['submissions','privacyRequests']
+        && request.resource.data.keys().hasOnly(['count','windowStart','requestId']) && uuid(request.resource.data.requestId)
+        && request.resource.data.count is int && request.resource.data.count >= 1 && request.resource.data.count <= (name == 'submissions' ? 100 : 20)
+        && (!exists(/databases/$(database)/documents/publicLimits/$(name))
+          ? request.resource.data.count == 1 && request.resource.data.windowStart == request.time
+          : resource.data.windowStart + duration.value(24,'h') <= request.time
+            ? request.resource.data.count == 1 && request.resource.data.windowStart == request.time
+            : request.resource.data.count == resource.data.count + 1 && request.resource.data.windowStart == resource.data.windowStart)
+        && linkedReceipt(request.resource.data.requestId,name);
+    }
+    match /system/graph {
+      allow read: if admin();
+      allow create, update: if admin() && request.resource.data.keys().hasOnly(['version']) && request.resource.data.version is int && graphEdit();
+    }
+    match /auditLogs/{id} {
+      allow read: if admin();
+      allow create: if admin() && request.resource.data.keys().hasOnly(['actorUid','action','entityId','changes','timestamp'])
+        && request.resource.data.actorUid == request.auth.uid && request.resource.data.timestamp == request.time;
+    }
+    match /relationshipOperations/{id} { allow read, create: if admin(); }
     match /accessRequests/{id} { allow read: if admin(); }
-    match /mailOutbox/{id} { allow read: if admin(); }
-    match /auditLogs/{id} { allow read: if admin(); }
     match /{document=**} { allow read, write: if false; }
   }
 }

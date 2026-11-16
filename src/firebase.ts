@@ -8,7 +8,6 @@ import {
   signOut,
 } from 'firebase/auth';
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
-import { getFunctions, connectFunctionsEmulator, httpsCallable } from 'firebase/functions';
 const env = import.meta.env;
 export const configured = Boolean(
   env.VITE_FIREBASE_API_KEY &&
@@ -31,11 +30,9 @@ if (app && env.VITE_FIREBASE_APPCHECK_SITE_KEY && env.VITE_USE_EMULATORS !== 'tr
   });
 export const auth = app ? getAuth(app) : null;
 export const db = app ? getFirestore(app) : null;
-const functions = app ? getFunctions(app, env.VITE_FUNCTIONS_REGION || 'us-central1') : null;
-if (env.VITE_USE_EMULATORS === 'true' && auth && db && functions) {
+if (env.VITE_USE_EMULATORS === 'true' && auth && db) {
   connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
   connectFirestoreEmulator(db, '127.0.0.1', 8080);
-  connectFunctionsEmulator(functions, '127.0.0.1', 5001);
 }
 export async function googleSignIn() {
   if (!auth) throw new Error('Falta conectar Firebase. Revisá la configuración en README.md.');
@@ -51,6 +48,8 @@ export async function googleSignIn() {
   return user;
 }
 export async function call<T = unknown>(name: string, data: unknown = {}): Promise<T> {
-  if (!functions) throw new Error('Falta conectar Firebase. Revisá la configuración en README.md.');
-  return (await httpsCallable<unknown, T>(functions, name)(data)).data;
+  if (!db || !auth)
+    throw new Error('Falta conectar Firebase. Revisá la configuración en README.md.');
+  const { createSparkApi } = await import('./spark');
+  return (await createSparkApi(db, auth)(name, data)) as T;
 }

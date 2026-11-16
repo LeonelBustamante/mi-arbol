@@ -8,14 +8,12 @@
   ],
   "scripts": {
     "dev": "vite --host 127.0.0.1",
-    "build": "tsc --noEmit && vite build && npm run build -w functions",
+    "build": "tsc --noEmit && vite build",
     "test": "vitest run tests/domain.test.ts tests/photos.test.ts tests/draft.test.ts tests/tree.test.tsx tests/admin.test.tsx",
-    "test:emulators": "npm run build -w functions && node scripts/test-emulators.mjs",
-    "emulators": "npm run build -w functions && firebase emulators:start --project demo-mi-arbol",
-    "import:tree": "tsx scripts/import-tree.ts",
-    "admin:bootstrap": "tsx scripts/bootstrap-admin.ts",
+    "test:emulators": "node scripts/test-emulators.mjs",
+    "emulators": "firebase emulators:start --only auth,firestore --project demo-mi-arbol",
     "format": "prettier --write --ignore-unknown src functions/src scripts tests *.ts *.json *.rules .github/workflows/*.yml README.md",
-    "local:backend": "npm run build -w functions && node scripts/local-backend.mjs"
+    "local:backend": "node scripts/local-backend.mjs"
   },
   "dependencies": {
     "@xyflow/react": "^12.9.0",

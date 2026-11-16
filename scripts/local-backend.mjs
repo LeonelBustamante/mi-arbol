@@ -33,7 +33,7 @@ const args = [
   '--project',
   projectId,
   '--only',
-  'auth,firestore,functions',
+  'auth,firestore',
   `--export-on-exit=${snapshot}`,
 ];
 if (existsSync(resolve(snapshot, 'firebase-export-metadata.json')))
@@ -98,6 +98,16 @@ async function initializeLocalOwner() {
       role: 'admin',
       updatedAt: FieldValue.serverTimestamp(),
     });
+  const db = getFirestore();
+  const published = await db.collection('publicPersons').get();
+  const migration = db.batch();
+  for (const row of published.docs) {
+    const person = await db.doc(`persons/${row.id}`).get();
+    migration.set(db.doc(`publicPersonVersions/${row.id}`), {
+      revision: person.data()?.revision || 1,
+    });
+  }
+  await migration.commit();
   await checkpoint();
   console.log(
     'BACKEND LOCAL LISTO · demo-mi-arbol-local · copias automáticas en .local/firebase-data',
@@ -107,13 +117,8 @@ async function initializeLocalOwner() {
 async function ready() {
   for (let attempt = 0; attempt < 120 && !stopping; attempt++) {
     try {
-      const response = await fetch(`http://127.0.0.1:5001/${projectId}/us-central1/verifyAdmin`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: '{"data":{}}',
-        signal: AbortSignal.timeout(1500),
-      });
-      if (response.status === 401) {
+      const response = await fetch('http://127.0.0.1:9099/', { signal: AbortSignal.timeout(1500) });
+      if (response.ok) {
         await initializeLocalOwner();
         return;
       }
@@ -121,9 +126,7 @@ async function ready() {
     await new Promise((ok) => setTimeout(ok, 1000));
   }
   if (!stopping) {
-    console.error(
-      'No se pudo iniciar el backend local. Revisá Java 21 y los puertos 8080, 9099 y 5001.',
-    );
+    console.error('No se pudo iniciar el backend local. Revisá Java 21 y los puertos 8080 y 9099.');
     child.kill('SIGINT');
   }
 }

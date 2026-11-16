@@ -54,9 +54,6 @@ function audit(tx: Transaction, actor: Actor, action: string, entityId: string, 
     changes,
   });
 }
-function notify(tx: Transaction, key: string, actor: Actor, event: string) {
-  tx.create(ref('mailOutbox', key), { actor, event, status: 'pending', createdAt: stamp() });
-}
 const proposalSchema = z
   .object({
     requestId: z.string().uuid(),
@@ -490,12 +487,6 @@ export async function submitContribution(actor: Actor, input: unknown) {
       reviewedBy: null,
       reviewedAt: null,
     });
-    notify(
-      tx,
-      `submission_${p.requestId}`,
-      contributor,
-      p.kind === 'new' ? 'Nuevo familiar propuesto' : 'Corrección propuesta',
-    );
     audit(tx, actor, 'submission.create', p.requestId, { kind: p.kind, identityVerified: false });
     return { id: p.requestId, status: 'pending' };
   });
@@ -536,7 +527,6 @@ export async function submitPrivacy(actor: Actor, input: unknown) {
       status: 'pending',
       submittedAt: stamp(),
     });
-    notify(tx, `privacy_${p.requestId}`, contributor, 'Solicitud de privacidad');
     audit(tx, actor, 'privacy.request', p.requestId, { type: p.type });
     return { id: p.requestId };
   });

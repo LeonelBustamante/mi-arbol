@@ -322,8 +322,8 @@ export default function App() {
                   <h3>Preparación del proyecto</h3>
                   <p>
                     La aplicación todavía no está conectada a Firebase y no contiene personas de
-                    ejemplo. El archivo README.md del proyecto explica cómo configurar el acceso,
-                    los correos, el importador y el despliegue.
+                    ejemplo. El archivo README.md del proyecto explica cómo configurar el acceso, el
+                    guardado y la publicación del árbol.
                   </p>
                 </>
               )}

@@ -26,8 +26,8 @@ const child = spawn(
     '--config',
     'firebase.test.json',
     '--only',
-    'auth,firestore,functions',
-    'vitest run tests/rules.test.ts tests/integration.test.ts --reporter=default --reporter=json --outputFile=.local/emulator-tests.json',
+    'auth,firestore',
+    'vitest run tests/spark.test.ts --reporter=default --reporter=json --outputFile=.local/emulator-tests.json',
   ],
   { env, stdio: 'inherit' },
 );
