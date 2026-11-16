@@ -3,9 +3,9 @@
 ## Resultado
 
 - Compilación de frontend y Cloud Functions: correcta.
-- Pruebas unitarias: **49 aprobadas**.
+- Pruebas unitarias: **52 aprobadas**.
 - Firebase Emulator Suite: **55 aprobadas**, con Auth, Firestore y Functions reales en entorno emulado (24 de integración y 31 de reglas).
-- Total: **104 pruebas aprobadas**, sin fallos.
+- Total: **107 pruebas aprobadas**, sin fallos.
 - Vista previa del importador: plantilla válida, cero personas y cero vínculos, sin escrituras.
 - La instalación de dependencias informó cero vulnerabilidades al actualizar Sharp a 0.35.5. Se conservó el override de gRPC corregido.
 - Nuevas pruebas: nombre del colaborador obligatorio, fechas parciales y compactas, cronología con precisión desigual, duplicados con fechas compatibles, validación de fotos, reducción y eliminación de EXIF, fotos pendientes privadas y publicación de fotos atómica con aprobación.
@@ -48,3 +48,9 @@ La suite de integración se ejecutó en puertos aislados mediante `firebase.test
 Se reprodujo la causa en el código de React Flow instalado: cuando un nodo no es seleccionable ni arrastrable y no hay `onNodeClick`, su contenedor recibe `pointer-events: none`. El `onClick` que estaba dentro de la tarjeta no podía recibir el evento. Se registró el manejador en React Flow, se dejó el botón accesible por teclado y se evitó que los conectores abran el formulario durante la unión de nodos.
 
 Tres pruebas de interfaz con el componente real de React Flow verifican el contenedor interactivo, la apertura por clic para visitante y administrador, y la apertura con Enter. La verificación visual adicional no se completó porque había interacción simultánea del usuario en Chrome; no se enviaron ni modificaron sus formularios o datos.
+
+## Revisión modal y preparación de producción
+
+El panel administrativo abre cada aporte en un modal con el nombre de quien lo cargó, foto opcional y comparación de datos actuales y propuestos. Aprobar y publicar requiere una acción explícita. Las correcciones desactualizadas no pueden aprobarse. Tres pruebas cubren apertura, aprobación, cierre sin cambios y conflictos de revisión.
+
+El código fue enviado a https://github.com/LeonelBustamante/mi-arbol sin datos familiares, fotos ni credenciales locales. El propietario autorizó hacerlo público para GitHub Pages. Pages está configurado con GitHub Actions; todavía no hay una publicación productiva. Se identificó el proyecto Firebase `mi-arbol-19103` y se cargó su configuración pública en variables de Actions. Falta habilitar facturación para Functions, configurar Auth, Firestore, App Check, correo y rol administrativo y comprobar el dominio final.

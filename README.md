@@ -134,9 +134,9 @@ La misma carga normalizada se registra por SHA-256: repetirla no cambia revision
 
 Los respaldos de administración incluyen fotos, datos privados y de moderación; son para custodia administrativa y no se publican. El formato del respaldo completo no es el formato de carga: trasladar únicamente las personas y relaciones al esquema anterior si se restaura un árbol.
 
-## Configuración productiva y despliegue — requiere confirmación
+## Configuración productiva y despliegue
 
-No se crearon proyectos, cuentas, repositorios remotos, secretos ni servicios pagos. Antes de ejecutar los pasos siguientes, confirmar el proyecto de Firebase, el repositorio de GitHub, los datos a publicar y cualquier costo de Firebase/Google Cloud/proveedor de correo.
+Repositorio: https://github.com/LeonelBustamante/mi-arbol. El propietario autorizó publicar únicamente el código y desplegar en GitHub Pages. El proyecto elegido es `mi-arbol-19103`; su configuración pública está cargada en las variables de Actions. No se habilitaron servicios pagos. Antes de activar facturación hay que confirmar sus costos. La publicación productiva sigue pendiente de completar el backend y la verificación final.
 
 1. Crear o seleccionar el proyecto Firebase. Registrar una app web y obtener su configuración pública. Habilitar Google en Authentication y crear Firestore. Cloud Functions requiere un plan que permita su despliegue; revisar facturación y presupuestos antes de habilitarlo.
 2. Configurar App Check para la app con reCAPTCHA Enterprise y el dominio final. Agregar la clave pública `VITE_FIREBASE_APPCHECK_SITE_KEY`. Activar enforcement de Firestore después de validar métricas. En Functions el enforcement ya está activo en el código productivo.
