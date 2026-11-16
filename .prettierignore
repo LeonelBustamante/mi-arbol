@@ -1,0 +1,6 @@
+node_modules
+dist
+functions/lib
+package-lock.json
+.local
+*.log

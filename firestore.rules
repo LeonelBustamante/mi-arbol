@@ -1,0 +1,22 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function role() { return get(/databases/$(database)/documents/members/$(request.auth.uid)).data.role; }
+    function admin() { return signedIn() && request.auth.token.email == 'aleobustamante@gmail.com' && request.auth.token.email_verified == true && request.auth.token.firebase.sign_in_provider == 'google.com' && role() == 'admin'; }
+    match /publicPersonPhotos/{id} { allow read: if true; }
+    match /personPhotos/{id} { allow read: if admin(); }
+    match /submissionPhotos/{id} { allow read: if admin(); }
+    match /publicPersons/{id} { allow read: if true; }
+    match /publicRelationships/{id} { allow read: if true; }
+    match /members/{uid} { allow read: if admin() || (signedIn() && request.auth.uid == uid); }
+    match /persons/{id} { allow read: if admin(); }
+    match /relationships/{id} { allow read: if admin(); }
+    match /submissions/{id} { allow read: if admin(); }
+    match /privacyRequests/{id} { allow read: if admin(); }
+    match /accessRequests/{id} { allow read: if admin(); }
+    match /mailOutbox/{id} { allow read: if admin(); }
+    match /auditLogs/{id} { allow read: if admin(); }
+    match /{document=**} { allow read, write: if false; }
+  }
+}
