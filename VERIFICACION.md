@@ -32,3 +32,7 @@ Antes de activar App Check se comprobó por REST que las colecciones públicas e
 Las pruebas completas contra reglas reales y React están aprobadas. No se completó la comprobación visual del dominio final, del teléfono ni el inicio de sesión real del propietario. Telegram no está conectado: falta crear el bot.
 
 Los datos locales originales y las copias automáticas permanecen conservados. Ningún dato familiar ni foto se incluyó en las ramas de código o archivos estáticos de Pages.
+
+## Corrección de App Check
+
+Se diagnosticó un 403 de intercambio de tokens porque `firebaseappcheck.googleapis.com` estaba deshabilitada. Se habilitó la API, se completó su identidad de servicio y se volvió a registrar la misma clave reCAPTCHA. Se conservaron enforcement y las reglas de Firestore. Tras recargar, Chrome mostró los cinco nodos y los tres vínculos publicados sin el error de carga; el formulario que estaba completando el usuario se preservó.
