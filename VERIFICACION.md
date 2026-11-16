@@ -21,8 +21,14 @@ Las 52 pruebas unitarias incluyen fechas parciales, validación de genealogía y
 - Ninguna Cloud Function, servicio de correo ni facturación habilitada por este trabajo.
 - Compilación productiva separada en `.local/production-dist`, con Firebase real y emuladores desactivados.
 
-## Verificaciones pendientes de publicación
+## Publicación completada
 
-Comprobar entrega del HTML y assets en el dominio final, App Check desde el navegador, sesión Google del administrador, recepción y moderación en producción y pantalla móvil. GitHub Actions informó un bloqueo de cuenta por facturación; se probará Pages con los archivos ya compilados. La publicación no se considera completa hasta verificar su URL.
+URL: https://leonelbustamante.github.io/mi-arbol/ — HTTP 200. GitHub Pages publicó desde `gh-pages` con `.nojekyll`, sin usar el workflow de CI bloqueado por facturación de la cuenta.
 
-Los datos manuales y fotos se conservan en el emulador `demo-mi-arbol-local` y en `.local/firebase-data`, excluidos de Git. Las pruebas usan otro proyecto y otros puertos. Ningún dato familiar se publica dentro del repositorio de código.
+Se trasladaron y contaron 47 documentos desde el emulador, en una transacción sin sobrescribir registros existentes: 5 personas, 3 vínculos, 6 aportes, 19 auditorías, versión del grafo, proyecciones públicas y revisiones. Respaldo privado: `.local/spark-migration-private.json`, excluido de Git. No se trasladaron usuarios simulados, roles del emulador ni correos.
+
+Antes de activar App Check se comprobó por REST que las colecciones públicas entregaban solo sus campos previstos y que personas privadas y aportes devolvían 403. App Check de Firestore quedó en `ENFORCED`. Google confirmó `billingEnabled: false`.
+
+Las pruebas completas contra reglas reales y React están aprobadas. No se completó la comprobación visual del dominio final, del teléfono ni el inicio de sesión real del propietario. Telegram no está conectado: falta crear el bot.
+
+Los datos locales originales y las copias automáticas permanecen conservados. Ningún dato familiar ni foto se incluyó en las ramas de código o archivos estáticos de Pages.

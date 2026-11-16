@@ -2,6 +2,8 @@
 
 Árbol colaborativo en español con React, TypeScript, Vite, React Flow y **Firebase Spark**, sin Cloud Functions, Storage ni envío de correos. El frontend está preparado para GitHub Pages y usa rutas hash (`/#/admin`).
 
+**Web publicada:** https://leonelbustamante.github.io/mi-arbol/
+
 Repositorio: https://github.com/LeonelBustamante/mi-arbol. Proyecto Firebase: `mi-arbol-19103`.
 
 ## Uso
@@ -85,7 +87,9 @@ npx firebase deploy --only firestore --project mi-arbol-19103
 5. Compilar con configuración productiva y `VITE_USE_EMULATORS=false`. Publicar `dist` con el workflow manual de Pages, o como sitio estático ya compilado desde una rama `gh-pages` con `.nojekyll`.
 6. Verificar el dominio final, aporte público, Google del propietario, aprobación, fotos y privacidad. Activar enforcement de App Check en Firestore tras comprobar la configuración de la app.
 
-GitHub informó un bloqueo de Actions por un problema de facturación de su cuenta. Es independiente de Firebase Spark. La compilación local y el despliegue estático no requieren contratar runners pagos, pero la cuenta debe permitir publicar Pages.
+La web se publicó desde la rama `gh-pages`, con archivos compilados localmente y `.nojekyll`. GitHub bloquea el workflow de CI por la facturación de su cuenta, pero permitió la publicación nativa de Pages. No hace falta habilitar Blaze ni contratar runners para la publicación actual.
+
+Telegram todavía no está conectado: el propietario no tiene un bot creado. Para aprobar o rechazar desde Telegram hará falta un servicio de confianza que guarde la clave del bot fuera del frontend y autorice exclusivamente al propietario. El panel web ya permite revisar y aprobar.
 
 El administrador puede exportar JSON desde el panel. Ese respaldo incluye datos privados y fotos: guardarlo fuera del repositorio público. Eliminar una persona borra sus proyecciones y vínculos, pero las propuestas, auditorías y respaldos pueden conservar versiones anteriores; revisar esos registros ante solicitudes de eliminación.
 
