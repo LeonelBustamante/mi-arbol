@@ -97,4 +97,8 @@ Referencias: [plan Spark](https://firebase.google.com/docs/projects/billing/fire
 
 ## Dibujo del árbol
 
-Las parejas se conectan horizontalmente y los hijos comparten una bajada familiar. Los hermanos se agrupan bajo sus progenitores y los abuelos se alinean con su propio hijo dentro de una pareja. Las tarjetas conservan dimensiones estables para que los conectores no las atraviesen; las parejas no adyacentes se dibujan por arriba. Los co-progenitores pueden compartir una fila sin inventar un vínculo de pareja. Al cambiar un parentesco se vuelve a encuadrar la distribución. Esta representación no modifica los datos ni crea relaciones nuevas.
+El motor ELK organiza grupos familiares completos y reserva espacio para su descendencia. Los cónyuges comparten fila y los conectores ortogonales se trazan alrededor de las tarjetas. Una unión familiar conecta a los progenitores registrados con sus hijos, sin convertir automáticamente a otros cónyuges en padres. Cada rama tiene un color estable.
+
+El selector visible **Ver familia** permite alternar entre el árbol completo y la descendencia de cualquier grupo con hijos, incluyendo familias de generaciones intermedias. La vista incluye cónyuges y otros progenitores necesarios como contexto, sin incorporar automáticamente sus antepasados y hermanos. Los clics siguen abriendo la edición de la persona canónica. La distribución no cambia los parentescos guardados.
+
+El cálculo es asíncrono y se vuelve a ejecutar solo cuando cambia la estructura del árbol o la familia seleccionada. La búsqueda puede volver al árbol completo y centrar a la persona encontrada. Las figuras temporales de revisión con datos reales se guardan exclusivamente en `.local`, fuera del repositorio.

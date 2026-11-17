@@ -2353,3 +2353,66 @@ dd {
     gap: 12px;
   }
 }
+
+.canvas-app .tree-toolbar {
+  width: min(800px, calc(100% - 48px));
+}
+.branch-picker {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  padding: 0 8px 0 14px;
+  border-left: 1px solid #e0e6da;
+  color: #75846c;
+  font-size: 11px;
+}
+.branch-picker > span {
+  white-space: nowrap;
+}
+.branch-picker select {
+  width: 260px;
+  max-width: 34vw;
+  margin: 0;
+  padding: 9px 28px 9px 10px;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  border-color: #dfe6d6;
+}
+.layout-progress {
+  position: absolute;
+  top: 175px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 12;
+  padding: 12px 20px;
+  border-radius: 12px;
+  background: #fffffff0;
+  color: #718263;
+  box-shadow: 0 4px 18px #344e2910;
+  font-size: 12px;
+}
+@media (max-width: 720px) {
+  .canvas-app .tree-toolbar {
+    flex-wrap: wrap;
+    width: calc(100% - 24px);
+  }
+  .branch-picker {
+    order: 3;
+    width: 100%;
+    padding: 8px 4px 2px;
+    border-left: 0;
+    border-top: 1px solid #e0e6da;
+  }
+  .branch-picker select {
+    flex: 1;
+    width: auto;
+    max-width: none;
+    min-width: 0;
+  }
+  .layout-progress {
+    top: 205px;
+    width: max-content;
+    max-width: 90vw;
+  }
+}

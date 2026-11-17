@@ -14,13 +14,13 @@ import {
   type Edge,
   type EdgeProps,
 } from '@xyflow/react';
-import { LocateFixed, Search, SlidersHorizontal, Sprout, ArrowUpRight, X } from 'lucide-react';
+import { LocateFixed, Search, Sprout, ArrowUpRight, X } from 'lucide-react';
 import { colors, date, layout, type TreePerson, type Relationship } from './model';
 import {
   CARD_WIDTH,
   CARD_HEIGHT,
-  drawFamily,
-  drawPartner,
+  branchPeople,
+  type FamilyTreeLayout,
   type ConnectionDrawing,
 } from './tree-layout';
 type Data = {
@@ -91,7 +91,12 @@ function PersonNode({ data }: NodeProps<Node<Data>>) {
   );
 }
 const nodeTypes = { person: PersonNode };
-type KinshipData = { drawing: ConnectionDrawing; partner?: boolean; description: string };
+type KinshipData = {
+  drawing: ConnectionDrawing;
+  partner?: boolean;
+  color: string;
+  description: string;
+};
 function KinshipEdge({ data }: EdgeProps<Edge<KinshipData>>) {
   if (!data) return null;
   return (
@@ -102,7 +107,7 @@ function KinshipEdge({ data }: EdgeProps<Edge<KinshipData>>) {
           key={i}
           d={part.path}
           fill="none"
-          stroke={data.partner ? '#b2916d' : '#829b78'}
+          stroke={data.color}
           strokeWidth={2}
           strokeDasharray={part.hypothesis ? '6 5' : undefined}
           strokeLinecap="round"
@@ -110,7 +115,7 @@ function KinshipEdge({ data }: EdgeProps<Edge<KinshipData>>) {
         />
       ))}
       {data.drawing.junction && (
-        <circle cx={data.drawing.junction.x} cy={data.drawing.junction.y} r={3} fill="#829b78" />
+        <circle cx={data.drawing.junction.x} cy={data.drawing.junction.y} r={3} fill={data.color} />
       )}
     </g>
   );
@@ -149,142 +154,127 @@ function TreeCanvas({
   onJoin: (from?: string, to?: string, type?: Relationship['type']) => void;
 }) {
   const [search, setSearch] = useState('');
-  const [generation, setGeneration] = useState('all');
-  const [filters, setFilters] = useState(false);
+  const [branch, setBranch] = useState('all');
+  const [graph, setGraph] = useState<FamilyTreeLayout | null>(null);
+  const [arranging, setArranging] = useState(true);
+  const [layoutError, setLayoutError] = useState('');
+  const [locating, setLocating] = useState('');
+  const [rootOptions, setRootOptions] = useState<FamilyTreeLayout['roots']>([]);
   const flow = useReactFlow();
-  const graph = useMemo(() => layout(people, relationships), [people, relationships]);
+  const structureKey = JSON.stringify([
+    people.map((p) => [p.id, p.fullName, p.birthDate]).sort(),
+    relationships.map((r) => [r.id, r.from, r.to, r.type, r.certainty]).sort(),
+    branch,
+  ]);
+  useEffect(() => {
+    let active = true;
+    const seeds = rootOptions.find((r) => r.id === branch)?.people;
+    const ids = seeds
+      ? branchPeople(people, relationships, seeds)
+      : new Set(people.map((p) => p.id));
+    const branchPersons = people.filter((p) => ids.has(p.id));
+    const branchRelations = relationships.filter((r) => ids.has(r.from) && ids.has(r.to));
+    setArranging(true);
+    setLayoutError('');
+    layout(branchPersons, branchRelations)
+      .then((result) => {
+        if (active) {
+          setGraph(result);
+          if (branch === 'all') setRootOptions(result.roots);
+          setArranging(false);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setLayoutError('No se pudo ordenar el árbol. Recargá la página para volver a intentar.');
+          setArranging(false);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [structureKey]);
   const nodes = useMemo(
     () =>
-      people.map((p) => ({
-        id: p.id,
-        type: 'person',
-        style: { width: CARD_WIDTH, height: CARD_HEIGHT },
-        position: graph.positions.get(p.id)!,
-        hidden: generation !== 'all' && graph.levels.get(p.id) !== Number(generation),
-        data: {
-          person: p,
-          color:
-            colors[
+      people
+        .filter((p) => graph?.positions.has(p.id))
+        .map((p) => ({
+          id: p.id,
+          type: 'person',
+          style: { width: CARD_WIDTH, height: CARD_HEIGHT },
+          position: graph!.positions.get(p.id)!,
+          data: {
+            person: p,
+            color:
               privateView && 'branch' in p && p.branch
-                ? [
-                    'Hecht',
-                    'Elkin',
-                    'Berger',
-                    'Feldman',
-                    'Bavor',
-                    'Pennese',
-                    'Posternak',
-                    'Bustamante',
-                  ].indexOf(p.branch)
-                : (graph.components.get(p.id) || 0) % colors.length
-            ],
-          privateView,
+                ? colors[
+                    [
+                      'Hecht',
+                      'Elkin',
+                      'Berger',
+                      'Feldman',
+                      'Bavor',
+                      'Pennese',
+                      'Posternak',
+                      'Bustamante',
+                    ].indexOf(p.branch)
+                  ]
+                : graph!.personColors.get(p.id) || colors[0],
+            privateView,
+          },
+        })),
+    [people, graph, privateView],
+  );
+  const edges = useMemo<Edge<KinshipData>[]>(
+    () =>
+      (graph?.connections || []).map((c) => ({
+        id: c.id,
+        source: c.source,
+        target: c.target,
+        type: 'kinship',
+        sourceHandle: c.partner ? 'partner-from' : 'child',
+        targetHandle: c.partner ? 'partner-to' : 'parent',
+        ariaLabel: c.description,
+        data: {
+          drawing: c.drawing,
+          partner: c.partner,
+          color: c.color,
+          description: c.description,
         },
       })),
-    [people, graph, privateView, onSelect, generation],
+    [graph],
   );
-  const edges = useMemo(() => {
-    const visible = relationships.filter(
-      (r) => graph.positions.has(r.from) && graph.positions.has(r.to),
-    );
-    const result: Edge<KinshipData>[] = [];
-    for (const r of visible.filter((r) => r.type === 'partner')) {
-      const [left, right] = [r.from, r.to].sort(
-        (a, b) => graph.positions.get(a)!.x - graph.positions.get(b)!.x,
-      );
-      result.push({
-        id: r.id,
-        source: left,
-        target: right,
-        sourceHandle: 'partner-from',
-        targetHandle: 'partner-to',
-        type: 'kinship',
-        ariaLabel: 'Pareja registrada',
-        data: {
-          partner: true,
-          description: 'Pareja registrada',
-          drawing: {
-            paths: [
-              {
-                path: drawPartner(graph.positions.get(left)!, graph.positions.get(right)!),
-                hypothesis: r.certainty === 'hypothesis',
-              },
-            ],
-          },
-        },
-      });
-    }
-    const families = new Map<
-      string,
-      { parents: string[]; children: { id: string; hypothesis: boolean }[] }
-    >();
-    for (const child of people) {
-      const incoming = visible.filter((r) => r.type !== 'partner' && r.to === child.id);
-      if (!incoming.length) continue;
-      const parents = [...new Set(incoming.map((r) => r.from))].sort(
-        (a, b) => graph.positions.get(a)!.x - graph.positions.get(b)!.x,
-      );
-      const key = JSON.stringify([parents, graph.levels.get(child.id)]);
-      if (!families.has(key)) families.set(key, { parents, children: [] });
-      families.get(key)!.children.push({
-        id: child.id,
-        hypothesis: incoming.some((r) => r.certainty === 'hypothesis'),
-      });
-    }
-    for (const [key, family] of families) {
-      const points = family.parents.map((id) => graph.positions.get(id)!);
-      const couple =
-        points.length === 2 &&
-        points[0].y === points[1].y &&
-        Math.abs(points[0].x - points[1].x) <= CARD_WIDTH + 56 + 1 &&
-        visible.some(
-          (r) =>
-            r.type === 'partner' &&
-            r.certainty !== 'hypothesis' &&
-            family.parents.includes(r.from) &&
-            family.parents.includes(r.to),
-        );
-      result.push({
-        id: `family:${key}`,
-        source: family.parents[0],
-        target: family.children[0].id,
-        sourceHandle: 'child',
-        targetHandle: 'parent',
-        type: 'kinship',
-        ariaLabel: 'Padres e hijos registrados',
-        data: {
-          description: 'Padres e hijos registrados',
-          drawing: drawFamily(
-            points,
-            family.children.map((c) => ({
-              point: graph.positions.get(c.id)!,
-              hypothesis: c.hypothesis,
-            })),
-            couple,
-          ),
-        },
-      });
-    }
-    return result;
-  }, [people, relationships, graph]);
   const fitKey = nodes
     .map((n) => `${n.id}:${n.position.x}:${n.position.y}`)
     .sort()
     .join('|');
   useEffect(() => {
+    if (locating) return;
     const timer = setTimeout(() => flow.fitView({ padding: 0.25, maxZoom: 1, duration: 400 }), 100);
     return () => clearTimeout(timer);
-  }, [fitKey, generation, flow]);
+  }, [fitKey, flow]);
   const matches = search
     ? people.filter((p) =>
         p.fullName.toLocaleLowerCase('es').includes(search.toLocaleLowerCase('es')),
       )
     : [];
   function locate(id: string) {
-    setGeneration('all');
+    setBranch('all');
     setSearch('');
-    setTimeout(() => flow.fitView({ nodes: [{ id }], maxZoom: 1.1, duration: 500 }), 100);
+    setLocating(id);
   }
+  useEffect(() => {
+    if (
+      locating &&
+      branch === 'all' &&
+      !arranging &&
+      graph?.positions.size === people.length &&
+      graph.positions.has(locating)
+    ) {
+      void flow.fitView({ nodes: [{ id: locating }], maxZoom: 1.1, duration: 500 });
+      setLocating('');
+    }
+  }, [locating, arranging, graph, flow]);
   return (
     <>
       <div className="tree-toolbar">
@@ -320,14 +310,24 @@ function TreeCanvas({
             </div>
           )}
         </div>
-        <button
-          className={`button secondary ${filters ? 'active' : ''}`}
-          onClick={() => setFilters(!filters)}
-          aria-expanded={filters}
-        >
-          <SlidersHorizontal size={16} />
-          <span>Generaciones</span>
-        </button>
+        <label className="branch-picker">
+          <span>Ver familia</span>
+          <select
+            aria-label="Familia o rama del árbol"
+            value={branch}
+            onChange={(e) => {
+              setBranch(e.target.value);
+              setSearch('');
+            }}
+          >
+            <option value="all">Árbol completo</option>
+            {rootOptions.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.label}
+              </option>
+            ))}
+          </select>
+        </label>
         <button
           className="icon-button center-button"
           title="Centrar árbol"
@@ -337,22 +337,6 @@ function TreeCanvas({
           <LocateFixed size={19} />
         </button>
       </div>
-      {filters && (
-        <div className="filter-bar">
-          <label>
-            Mostrar{' '}
-            <select value={generation} onChange={(e) => setGeneration(e.target.value)}>
-              <option value="all">Todas las generaciones</option>
-              {graph.generations.map((n) => (
-                <option key={n} value={n}>
-                  Generación {n + 1}
-                </option>
-              ))}
-            </select>
-          </label>
-          <span>Los parentescos provienen de vínculos registrados.</span>
-        </div>
-      )}
       <div className="tree-canvas">
         <ReactFlow
           nodes={nodes}
@@ -383,8 +367,18 @@ function TreeCanvas({
         >
           <Background color="#d9dfd2" gap={25} size={1} />
           <Controls showInteractive={false} />
-          {people.length > 8 && <MiniMap pannable zoomable nodeColor="#a5b69b" />}
+          {nodes.length > 8 && <MiniMap pannable zoomable nodeColor="#a5b69b" />}
         </ReactFlow>
+        {arranging && people.length > 0 && (
+          <div className="layout-progress" role="status">
+            Ordenando las ramas familiares…
+          </div>
+        )}
+        {layoutError && (
+          <div className="layout-progress error-banner" role="alert">
+            {layoutError}
+          </div>
+        )}
         {!people.length && (
           <div className="empty-tree">
             <div className="tree-emblem">
@@ -405,7 +399,7 @@ function TreeCanvas({
           </div>
         )}
         <div
-          className={`tree-legend ${people.length > 8 ? 'with-minimap' : ''}`}
+          className={`tree-legend ${nodes.length > 8 ? 'with-minimap' : ''}`}
           aria-label="Referencias de los vínculos"
         >
           <span>

@@ -110,3 +110,35 @@ it('el botón del nodo también se activa con Enter', async () => {
     expect(screen.getByRole('dialog', { name: 'Proponer editar datos' })).toBeTruthy(),
   );
 });
+
+it('elegir una familia muestra solo su rama y mantiene la edición del nodo', async () => {
+  const a = { id: 'ancestor-a', fullName: 'Familia A', birthDate: '' },
+    b = { id: 'ancestor-b', fullName: 'Familia B', birthDate: '' },
+    c = { id: 'child-a', fullName: 'Hijo A', birthDate: '' },
+    d = { id: 'child-b', fullName: 'Hijo B', birthDate: '' };
+  const select = vi.fn();
+  render(
+    <Tree
+      people={[a, b, c, d]}
+      relationships={[
+        { id: 'a-c', from: a.id, to: c.id, type: 'father', certainty: 'confirmed' },
+        { id: 'b-d', from: b.id, to: d.id, type: 'mother', certainty: 'confirmed' },
+      ]}
+      privateView={false}
+      loading={false}
+      onSelect={select}
+      onAccess={() => {}}
+      onJoin={() => {}}
+    />,
+  );
+  await screen.findByRole('button', { name: 'Proponer editar datos de Hijo B' });
+  await userEvent.selectOptions(
+    screen.getByRole('combobox', { name: 'Familia o rama del árbol' }),
+    'ancestor-a',
+  );
+  await waitFor(() =>
+    expect(screen.queryByRole('button', { name: 'Proponer editar datos de Hijo B' })).toBeNull(),
+  );
+  await userEvent.click(screen.getByRole('button', { name: 'Proponer editar datos de Hijo A' }));
+  expect(select).toHaveBeenCalledWith(c);
+});

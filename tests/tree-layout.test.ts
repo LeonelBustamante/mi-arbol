@@ -1,7 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { familyLayout, drawFamily, drawPartner, CARD_WIDTH, CARD_HEIGHT } from '../src/tree-layout';
+import {
+  familyLayout,
+  drawPartner,
+  branchPeople,
+  CARD_WIDTH,
+  CARD_HEIGHT,
+  type Point,
+} from '../src/tree-layout';
 import type { TreePerson, Relationship } from '../src/model';
-const person = (id: string, name = id): TreePerson => ({ id, fullName: name, birthDate: '' });
+const person = (id: string): TreePerson => ({ id, fullName: `Persona ${id}`, birthDate: '' });
 const edge = (from: string, to: string, type: Relationship['type']): Relationship => ({
   id: `${type}-${from}-${to}`,
   from,
@@ -10,91 +17,155 @@ const edge = (from: string, to: string, type: Relationship['type']): Relationshi
   certainty: 'confirmed',
 });
 const people = [
-  person('grandfather-left'),
-  person('grandfather-right'),
-  person('z-father'),
-  person('a-mother'),
-  person('child-a'),
-  person('child-b'),
-];
+  'ga',
+  'gma',
+  'gb',
+  'gmb',
+  'a',
+  'b',
+  'sibling-a',
+  'spouse-a',
+  'sibling-b',
+  'spouse-b',
+  'child-a',
+  'child-b',
+  'grandchild-a',
+  'grandchild-b',
+].map(person);
 const relationships = [
-  edge('grandfather-left', 'z-father', 'father'),
-  edge('grandfather-right', 'a-mother', 'father'),
-  edge('z-father', 'a-mother', 'partner'),
-  edge('z-father', 'child-a', 'father'),
-  edge('a-mother', 'child-a', 'mother'),
-  edge('z-father', 'child-b', 'father'),
-  edge('a-mother', 'child-b', 'mother'),
+  edge('ga', 'gma', 'partner'),
+  edge('gb', 'gmb', 'partner'),
+  edge('ga', 'a', 'father'),
+  edge('gma', 'a', 'mother'),
+  edge('ga', 'sibling-a', 'father'),
+  edge('gma', 'sibling-a', 'mother'),
+  edge('gb', 'b', 'father'),
+  edge('gmb', 'b', 'mother'),
+  edge('gb', 'sibling-b', 'father'),
+  edge('gmb', 'sibling-b', 'mother'),
+  edge('a', 'b', 'partner'),
+  edge('sibling-a', 'spouse-a', 'partner'),
+  edge('sibling-b', 'spouse-b', 'partner'),
+  edge('a', 'child-a', 'father'),
+  edge('b', 'child-a', 'mother'),
+  edge('a', 'child-b', 'father'),
+  edge('b', 'child-b', 'mother'),
+  edge('sibling-a', 'grandchild-a', 'mother'),
+  edge('sibling-a', 'grandchild-b', 'mother'),
 ];
-describe('distribución y conexiones genealógicas', () => {
-  it('cada abuelo se ubica sobre su propio hijo dentro de la pareja', () => {
-    const { positions: p, levels } = familyLayout(people, relationships);
-    expect(Math.abs(p.get('grandfather-left')!.x - p.get('z-father')!.x)).toBeLessThan(32);
-    expect(Math.abs(p.get('grandfather-right')!.x - p.get('a-mother')!.x)).toBeLessThan(32);
-    expect(p.get('z-father')!.x).toBeLessThan(p.get('a-mother')!.x);
-    expect(levels.get('z-father')).toBe(levels.get('a-mother'));
-    expect(levels.get('child-a')).toBe(levels.get('z-father')! + 1);
+function segments(path: string) {
+  const tokens = path.match(/[MLHV]|-?\d+(?:\.\d+)?(?:e[+-]?\d+)?/gi) || [];
+  const result: [Point, Point][] = [];
+  let point: Point = { x: 0, y: 0 };
+  let i = 0;
+  while (i < tokens.length) {
+    const command = tokens[i++],
+      a = Number(tokens[i++]);
+    const next =
+      command === 'H'
+        ? { x: a, y: point.y }
+        : command === 'V'
+          ? { x: point.x, y: a }
+          : { x: a, y: Number(tokens[i++]) };
+    if (command !== 'M') result.push([point, next]);
+    point = next;
+  }
+  return result;
+}
+function crossesCard(a: Point, b: Point, p: Point) {
+  const pad = 0.1;
+  return a.x === b.x
+    ? a.x > p.x + pad &&
+        a.x < p.x + CARD_WIDTH - pad &&
+        Math.max(a.y, b.y) > p.y + pad &&
+        Math.min(a.y, b.y) < p.y + CARD_HEIGHT - pad
+    : a.y > p.y + pad &&
+        a.y < p.y + CARD_HEIGHT - pad &&
+        Math.max(a.x, b.x) > p.x + pad &&
+        Math.min(a.x, b.x) < p.x + CARD_WIDTH - pad;
+}
+describe('ramas familiares con espacio propio y trazado de conexiones', () => {
+  it('admite el estado inicial sin personas mientras Firebase carga', async () => {
+    const graph = await familyLayout([], []);
+    expect(graph.positions.size).toBe(0);
+    expect(graph.connections).toEqual([]);
   });
-  it('los hermanos quedan juntos debajo de sus padres y ninguna tarjeta se superpone', () => {
-    const { positions: p, levels } = familyLayout(people, relationships);
-    const childrenMiddle = (p.get('child-a')!.x + p.get('child-b')!.x) / 2;
-    const parentsMiddle = (p.get('z-father')!.x + p.get('a-mother')!.x) / 2;
-    expect(Math.abs(childrenMiddle - parentsMiddle)).toBeLessThan(1);
-    for (const a of people)
-      for (const b of people)
-        if (a.id !== b.id && levels.get(a.id) === levels.get(b.id))
-          expect(Math.abs(p.get(a.id)!.x - p.get(b.id)!.x)).toBeGreaterThan(CARD_WIDTH);
-  });
-  it('recibir las personas y relaciones en otro orden no cambia la distribución', () => {
-    const a = familyLayout(people, relationships),
-      b = familyLayout([...people].reverse(), [...relationships].reverse());
-    for (const p of people) {
-      expect(a.positions.get(p.id)!.x).toBeCloseTo(b.positions.get(p.id)!.x);
-      expect(a.positions.get(p.id)!.y).toBe(b.positions.get(p.id)!.y);
+  it('cada descendiente queda debajo de todos sus padres y las parejas comparten fila', async () => {
+    const graph = await familyLayout(people, relationships);
+    for (const r of relationships) {
+      const a = graph.positions.get(r.from)!,
+        b = graph.positions.get(r.to)!;
+      if (r.type === 'partner') {
+        expect(a.y).toBe(b.y);
+        expect(Math.abs(a.x - b.x)).toBe(CARD_WIDTH + 56);
+      } else expect(b.y).toBeGreaterThan(a.y + CARD_HEIGHT);
     }
   });
-  it('una pareja usa una línea horizontal sin retornar por encima de las tarjetas', () => {
+  it('ninguna conexión atraviesa una tarjeta, incluso al unir dos árboles extensos por una pareja', async () => {
+    const graph = await familyLayout(people, relationships);
+    for (const c of graph.connections)
+      for (const part of c.drawing.paths)
+        for (const [a, b] of segments(part.path))
+          for (const [id, p] of graph.positions)
+            expect(crossesCard(a, b, p), `${c.id} atraviesa ${id}`).toBe(false);
+  });
+  it('las tarjetas tienen espacio propio, sin superponerse entre ramas', async () => {
+    const graph = await familyLayout(people, relationships);
+    for (const [a, p] of graph.positions)
+      for (const [b, q] of graph.positions)
+        if (a !== b)
+          expect(
+            p.x + CARD_WIDTH <= q.x ||
+              q.x + CARD_WIDTH <= p.x ||
+              p.y + CARD_HEIGHT <= q.y ||
+              q.y + CARD_HEIGHT <= p.y,
+          ).toBe(true);
+  });
+  it('el orden de llegada de datos no cambia la distribución', async () => {
+    const a = await familyLayout(people, relationships),
+      b = await familyLayout([...people].reverse(), [...relationships].reverse());
+    for (const p of people) expect(a.positions.get(p.id)).toEqual(b.positions.get(p.id));
+  });
+  it('cada familia agrupa sus hijos y conserva los vínculos hipotéticos', async () => {
+    const graph = await familyLayout(
+      people,
+      relationships.map((r) =>
+        r.to === 'child-b' && r.type === 'mother' ? { ...r, certainty: 'hypothesis' } : r,
+      ),
+    );
+    const family = graph.connections.find(
+      (c) => !c.partner && c.description.startsWith('Persona a y Persona b:'),
+    )!;
+    expect(family.description).toContain('2 hijos/as');
+    expect(family.drawing.paths.some((p) => p.hypothesis)).toBe(true);
+    expect(family.drawing.paths.some((p) => !p.hypothesis)).toBe(true);
+  });
+  it('ver una rama incluye descendientes y parejas, sin mezclar la ascendencia ni los hermanos del cónyuge', () => {
+    const ids = branchPeople(people, relationships, ['a']);
+    expect(ids).toEqual(new Set(['a', 'b', 'child-a', 'child-b']));
+    expect(ids.has('gb')).toBe(false);
+    expect(ids.has('sibling-b')).toBe(false);
+  });
+  it('el selector ofrece también las familias intermedias, no solo los antepasados más antiguos', async () => {
+    const graph = await familyLayout(people, relationships);
+    expect(graph.roots.some((r) => r.people.includes('a') && r.people.includes('b'))).toBe(true);
+    expect(graph.roots.some((r) => r.people.includes('sibling-a'))).toBe(true);
+  });
+  it('un parentesco entre generaciones distintas se conserva sin colapsarlas en una fila', async () => {
+    const p = ['x', 'y', 'z'].map(person),
+      r = [edge('x', 'y', 'mother'), edge('x', 'z', 'mother'), edge('y', 'z', 'father')];
+    const graph = await familyLayout(p, r);
+    expect(graph.positions.get('x')!.y).toBeLessThan(graph.positions.get('y')!.y);
+    expect(graph.positions.get('y')!.y).toBeLessThan(graph.positions.get('z')!.y);
+    for (const c of graph.connections)
+      for (const part of c.drawing.paths)
+        for (const [a, b] of segments(part.path))
+          for (const pos of graph.positions.values()) expect(crossesCard(a, b, pos)).toBe(false);
+  });
+  it('una pareja normal se dibuja de costado y otra no adyacente pasa por arriba', () => {
     expect(drawPartner({ x: 0, y: 0 }, { x: 304, y: 0 })).toBe(
       `M ${CARD_WIDTH} ${CARD_HEIGHT / 2} H 304`,
     );
-  });
-  it('una segunda pareja salta por arriba, sin atravesar a otra persona', () => {
-    expect(drawPartner({ x: 0, y: 0 }, { x: 608, y: 0 })).toContain('V -30');
-  });
-  it('los hijos de una pareja comparten una sola bajada y conservan las hipótesis', () => {
-    const children = [
-      { point: { x: 0, y: 310 }, hypothesis: false },
-      { point: { x: 348, y: 310 }, hypothesis: true },
-    ];
-    const drawing = drawFamily(
-      [
-        { x: 0, y: 0 },
-        { x: 304, y: 0 },
-      ],
-      children,
-      true,
-    );
-    expect(drawing.paths).toHaveLength(3);
-    expect(drawing.junction).toEqual({ x: 276, y: 76 });
-    expect(drawing.paths[0].path).toContain('V 252');
-    expect(drawing.paths[2].hypothesis).toBe(true);
-    expect(
-      drawFamily(
-        [
-          { x: 0, y: 0 },
-          { x: 304, y: 0 },
-        ],
-        children,
-        false,
-      ).paths,
-    ).toHaveLength(5);
-  });
-  it('alinear co-progenitores no inventa una pareja ni contradice la ascendencia', () => {
-    const p = [person('a'), person('b'), person('c')];
-    const r = [edge('a', 'b', 'father'), edge('a', 'c', 'father'), edge('b', 'c', 'mother')];
-    const result = familyLayout(p, r);
-    expect(result.levels.get('a')).toBeLessThan(result.levels.get('b')!);
-    expect(result.levels.get('b')).toBeLessThan(result.levels.get('c')!);
-    expect(r.filter((x) => x.type === 'partner')).toHaveLength(0);
+    expect(drawPartner({ x: 0, y: 0 }, { x: 608, y: 0 })).toContain('V -28');
   });
 });

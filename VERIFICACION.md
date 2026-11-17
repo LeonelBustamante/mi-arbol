@@ -40,3 +40,9 @@ Se diagnosticó un 403 de intercambio de tokens porque `firebaseappcheck.googlea
 ## Conexiones genealógicas
 
 Se reemplazó la distribución por identificadores por grupos familiares y alineación según ascendencia. Nuevas líneas de pareja y ramas compartidas para hijos, con dimensiones de tarjetas estables. Se aprobaron 10 pruebas dirigidas de distribución, recorrido de líneas y apertura de nodos (7 nuevas y 3 existentes). Compilación productiva y TypeScript correctos. No se modificó la base de datos.
+
+## Reorganización por grupos familiares
+
+Se revisó la geometría de las 27 personas publicadas y sus conexiones en un diagrama local, excluido de Git. Se reemplazó la distribución anterior por ELK: espacio reservado para cada grupo, parejas alineadas, conexiones ortogonales que evitan las tarjetas y colores por rama. Se agregó un selector visible para ver la descendencia de familias de cualquier generación.
+
+Se aprobaron 14 pruebas dirigidas: jerarquía, alineación de parejas, separación de tarjetas, ausencia de conexiones que atraviesen personas, estabilidad de distribución, agrupación de hermanos e hipótesis, parentescos entre generaciones, estado vacío, selector de familias y conservación de la apertura de nodos por clic y teclado. TypeScript y compilación productiva correctos. No se escribieron datos familiares.
