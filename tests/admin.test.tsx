@@ -74,3 +74,48 @@ it('impide aprobar una corrección desactualizada desde el modal', async () => {
   ).toBe(true);
   expect(mocks.call).not.toHaveBeenCalled();
 });
+
+it('solo el propietario ve la gestión de administradores', () => {
+  setup();
+  expect(screen.queryByRole('button', { name: 'Administradores' })).toBeNull();
+});
+it('el propietario habilita una cuenta y confirma antes de revocarla', async () => {
+  mocks.rows.adminInvitations = [
+    { id: 'mod@example.test', email: 'mod@example.test', status: 'active' },
+  ];
+  mocks.call.mockResolvedValue({ status: 'active' });
+  const user = userEvent.setup();
+  render(
+    <Admin
+      owner
+      people={[]}
+      relationships={[]}
+      onError={vi.fn()}
+      onSuccess={vi.fn()}
+      onEdit={vi.fn()}
+    />,
+  );
+  await user.click(screen.getByRole('button', { name: 'Administradores' }));
+  await user.type(
+    screen.getByRole('textbox', { name: 'Correo de la cuenta de Google' }),
+    'nuevo@example.test',
+  );
+  await user.click(screen.getByRole('button', { name: 'Habilitar administrador' }));
+  await waitFor(() =>
+    expect(mocks.call).toHaveBeenCalledWith('manageAdmin', {
+      email: 'nuevo@example.test',
+      status: 'active',
+    }),
+  );
+  mocks.call.mockClear();
+  await user.click(screen.getByRole('button', { name: 'Revocar acceso' }));
+  expect(mocks.call).not.toHaveBeenCalled();
+  const dialog = screen.getByRole('dialog', { name: 'Revocar acceso administrativo' });
+  await user.click(within(dialog).getByRole('button', { name: 'Confirmar revocación' }));
+  await waitFor(() =>
+    expect(mocks.call).toHaveBeenCalledWith('manageAdmin', {
+      email: 'mod@example.test',
+      status: 'revoked',
+    }),
+  );
+});

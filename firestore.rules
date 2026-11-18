@@ -6,7 +6,14 @@ service cloud.firestore {
         && request.auth.token.email_verified == true
         && request.auth.token.firebase.sign_in_provider == 'google.com';
     }
-    function admin() { return owner() && get(/databases/$(database)/documents/members/$(request.auth.uid)).data.role == 'admin'; }
+    function googleUser() {
+      return request.auth != null && request.auth.token.email_verified == true
+        && request.auth.token.firebase.sign_in_provider == 'google.com';
+    }
+    function invited() {
+      return googleUser() && get(/databases/$(database)/documents/adminInvitations/$(request.auth.token.email.lower())).data.status == 'active';
+    }
+    function admin() { return googleUser() && (owner() || invited()) && get(/databases/$(database)/documents/members/$(request.auth.uid)).data.role == 'admin'; }
     function text(v, max) { return v is string && v.size() <= max; }
     function identifier(v) { return v is string && v.matches('^[a-zA-Z0-9_-]{1,100}$'); }
     function uuid(v) { return v is string && v.matches('^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$'); }
@@ -44,12 +51,19 @@ service cloud.firestore {
       return next == (exists(/databases/$(database)/documents/system/graph) ? get(/databases/$(database)/documents/system/graph).data.version : 0) + 1;
     }
     match /members/{uid} {
-      allow get: if admin() || (request.auth != null && request.auth.uid == uid);
-      allow list: if admin();
-      // Only the fixed, verified Google owner can initialize their own role.
-      allow create: if owner() && request.auth.uid == uid
+      allow get: if (owner() && admin()) || (request.auth != null && request.auth.uid == uid);
+      allow list: if owner() && admin();
+      allow create: if googleUser() && (owner() || invited()) && request.auth.uid == uid
         && request.resource.data.keys().hasOnly(['uid','email','role'])
-        && request.resource.data.uid == uid && request.resource.data.email == 'aleobustamante@gmail.com' && request.resource.data.role == 'admin';
+        && request.resource.data.uid == uid && request.resource.data.email == request.auth.token.email.lower() && request.resource.data.role == 'admin';
+    }
+    match /adminInvitations/{email} {
+      allow get: if (owner() && admin()) || (googleUser() && request.auth.token.email.lower() == email);
+      allow list: if owner() && admin();
+      allow create, update: if owner() && admin() && email != 'aleobustamante@gmail.com'
+        && request.resource.data.keys().hasOnly(['email','status','updatedBy','updatedAt'])
+        && request.resource.data.email == email && text(email,254) && email.matches('^[^ /@]+@[^ /@]+[.][^ /@]+$') && email == email.lower()
+        && request.resource.data.status in ['active','revoked'] && request.resource.data.updatedBy == request.auth.uid && request.resource.data.updatedAt == request.time;
     }
     match /publicPersons/{id} {
       allow read: if true;

@@ -14,6 +14,7 @@ import { collection, getDocs } from 'firebase/firestore';
 import { db, call } from './firebase';
 import { useRows, usePhoto } from './hooks';
 import Modal from './Modal';
+import AdminAccess from './AdminAccess';
 import { type Row, type Person, type Relationship, date } from './model';
 const tabs = [
   ['submissions', 'Aportes', FilePenLine],
@@ -42,12 +43,14 @@ function statusLabel(s: string) {
   );
 }
 export default function Admin({
+  owner = false,
   people,
   relationships,
   onError,
   onSuccess,
   onEdit,
 }: {
+  owner?: boolean;
   people: Person[];
   relationships: Relationship[];
   onError: (e: unknown) => void;
@@ -87,7 +90,7 @@ export default function Admin({
         'personPhotos',
         'submissionPhotos',
         'accessRequests',
-        'members',
+        ...(owner ? ['members', 'adminInvitations'] : []),
         'submissions',
         'privacyRequests',
         'auditLogs',
@@ -135,10 +138,25 @@ export default function Admin({
           Exportar JSON
         </button>
       </div>
+      <div className="admin-summary" aria-label="Resumen del árbol">
+        <div>
+          <strong>{submissions.rows.filter((r) => r.status === 'pending').length}</strong>
+          <span>Aportes pendientes</span>
+        </div>
+        <div>
+          <strong>{privacy.rows.filter((r) => r.status === 'pending').length}</strong>
+          <span>Pedidos de privacidad</span>
+        </div>
+        <div>
+          <strong>{people.length}</strong>
+          <span>Familiares registrados</span>
+        </div>
+      </div>
       <nav className="admin-tabs" aria-label="Secciones administrativas">
         {tabs.map(([key, label, Icon]) => (
           <button
             key={key}
+            aria-current={tab === key ? 'page' : undefined}
             className={tab === key ? 'active' : ''}
             onClick={() => {
               setTab(key);
@@ -149,13 +167,27 @@ export default function Admin({
             {label}
           </button>
         ))}
+        {owner && (
+          <button
+            className={tab === 'admins' ? 'active' : ''}
+            aria-current={tab === 'admins' ? 'page' : undefined}
+            onClick={() => {
+              setTab('admins');
+              setSelected(null);
+            }}
+          >
+            <ShieldCheck size={16} />
+            Administradores
+          </button>
+        )}
       </nav>
+      {tab === 'admins' && owner && <AdminAccess onError={onError} onSuccess={onSuccess} />}
       {readError && (
         <div className="error-banner" role="alert">
           No se pudo consultar la información: {readError}
         </div>
       )}
-      <div className="admin-list">
+      <div className="admin-list" hidden={tab === 'admins'}>
         {!rows.length ? (
           <div className="list-empty">
             <Check size={28} />

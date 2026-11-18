@@ -101,6 +101,65 @@ describe('Spark sin Functions: reglas y operaciones reales', () => {
       }),
     );
   });
+  it('un administrador invitado puede aprobar y pierde acceso al revocarlo', async () => {
+    const email = 'moderador@example.test';
+    await ownerApi()('manageAdmin', { email, status: 'active' });
+    const db = env.authenticatedContext('moderator', { ...owner, email }).firestore();
+    const api = createSparkApi(db, fakeAuth('moderator', email));
+    await api('verifyAdmin');
+    const p = proposal('Familiar revisado por moderador');
+    await guestApi()('submitContribution', p);
+    await api('moderate', { id: p.requestId, decision: 'approved' });
+    expect((await getDocs(collection(db, 'persons'))).size).toBe(1);
+    await assertFails(getDocs(collection(db, 'members')));
+    await assertFails(getDocs(collection(db, 'adminInvitations')));
+    await expect(
+      api('manageAdmin', { email: 'tercero@example.test', status: 'active' }),
+    ).rejects.toThrow();
+    await assertFails(
+      setDoc(doc(db, 'adminInvitations', 'tercero@example.test'), {
+        email: 'tercero@example.test',
+        status: 'active',
+        updatedBy: 'moderator',
+        updatedAt: serverTimestamp(),
+      }),
+    );
+    await ownerApi()('manageAdmin', { email, status: 'revoked' });
+    await assertFails(getDocs(collection(db, 'persons')));
+    await expect(api('verifyAdmin')).rejects.toThrow('invitación activa');
+    await expect(api('moderate', { id: p.requestId, decision: 'approved' })).rejects.toThrow();
+    await ownerApi()('manageAdmin', { email, status: 'active' });
+    await api('verifyAdmin');
+    await assertSucceeds(getDocs(collection(db, 'persons')));
+  });
+  it('una invitación no autoriza otro correo, Google sin verificar ni contraseña', async () => {
+    const email = 'invitado@example.test';
+    await ownerApi()('manageAdmin', { email, status: 'active' });
+    for (const [uid, claims] of [
+      ['stranger', { ...owner, email: 'stranger@example.test' }],
+      ['unverified-invite', { ...owner, email, email_verified: false }],
+      ['password-invite', { ...owner, email, firebase: { sign_in_provider: 'password' } }],
+    ] as const) {
+      const db = env.authenticatedContext(uid, claims).firestore();
+      await assertFails(setDoc(doc(db, 'members', uid), { uid, email, role: 'admin' }));
+      await assertFails(getDocs(collection(db, 'persons')));
+    }
+    await expect(
+      ownerApi()('manageAdmin', { email: owner.email, status: 'revoked' }),
+    ).rejects.toThrow('propietario');
+    const other = env
+      .authenticatedContext('other-invite', { ...owner, email: 'other@example.test' })
+      .firestore();
+    await assertFails(getDoc(doc(other, 'adminInvitations', email)));
+    await assertFails(
+      setDoc(doc(adminDb(), 'adminInvitations', owner.email), {
+        email: owner.email,
+        status: 'revoked',
+        updatedBy: 'owner',
+        updatedAt: serverTimestamp(),
+      }),
+    );
+  });
   it('guarda un aporte sin login ni foto; es privado y no publica ni crea correo', async () => {
     const p = proposal();
     await guestApi()('submitContribution', p);

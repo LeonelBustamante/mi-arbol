@@ -1,12 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-check';
-import {
-  getAuth,
-  connectAuthEmulator,
-  GoogleAuthProvider,
-  signInWithPopup,
-  signOut,
-} from 'firebase/auth';
+import { getAuth, connectAuthEmulator, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 const env = import.meta.env;
 export const configured = Boolean(
@@ -39,12 +33,6 @@ export async function googleSignIn() {
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: 'select_account' });
   const user = (await signInWithPopup(auth, provider)).user;
-  if (user.email !== 'aleobustamante@gmail.com') {
-    await signOut(auth);
-    throw new Error(
-      'El ingreso está reservado al administrador. Para enviar aportes no necesitás iniciar sesión.',
-    );
-  }
   return user;
 }
 export async function call<T = unknown>(name: string, data: unknown = {}): Promise<T> {

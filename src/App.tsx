@@ -57,6 +57,7 @@ export default function App() {
     type?: Relationship['type'];
   }>({});
   const [toast, setToast] = useState<{ message: string; error: boolean } | null>(null);
+  const owner = user?.email === 'aleobustamante@gmail.com' && user.emailVerified;
   const family = role === 'admin';
   const admin = role === 'admin';
   useEffect(() => {
@@ -69,13 +70,6 @@ export default function App() {
   useEffect(() => {
     if (!auth) return;
     return onAuthStateChanged(auth, (u) => {
-      if (u && u.email !== 'aleobustamante@gmail.com') {
-        void signOut(auth!).catch(() => {});
-        setRole('visitor');
-        setSelected(null);
-        setUser(null);
-        return;
-      }
       setRole('visitor');
       setSelected(null);
       setUser(u);
@@ -86,17 +80,37 @@ export default function App() {
       setRole('visitor');
       return;
     }
+    let memberRole: Role = 'visitor';
+    let invited = false;
+    const refresh = () =>
+      setRole(memberRole === 'admin' && (owner || invited) ? 'admin' : 'visitor');
+    const stopInvite =
+      !owner && user.email
+        ? onSnapshot(
+            doc(db, 'adminInvitations', user.email.toLowerCase()),
+            (s) => {
+              invited = s.data()?.status === 'active';
+              refresh();
+            },
+            () => {
+              invited = false;
+              refresh();
+            },
+          )
+        : () => {};
     const stopRole = onSnapshot(
       doc(db, 'members', user.uid),
       (s) => {
-        setRole(s.data()?.role || 'visitor');
+        memberRole = s.data()?.role === 'admin' ? 'admin' : 'visitor';
+        refresh();
       },
       () => setRole('visitor'),
     );
     return () => {
       stopRole();
+      stopInvite();
     };
-  }, [user]);
+  }, [user, owner]);
   useEffect(() => {
     if (!family) {
       setSelected(null);
@@ -167,6 +181,16 @@ export default function App() {
   }
   return (
     <div className={`app-shell canvas-app ${admin ? 'is-admin' : ''}`}>
+      <a
+        className="skip-link"
+        href="#main-content"
+        onClick={(e) => {
+          e.preventDefault();
+          document.getElementById('main-content')?.focus();
+        }}
+      >
+        Saltar al contenido
+      </a>
       <header className="floating-header">
         <a className="canvas-brand" href="#/">
           <TreeDeciduous size={24} />
@@ -184,11 +208,20 @@ export default function App() {
           </button>
           {admin ? (
             <>
-              <button className="button secondary" onClick={() => onJoin()}>
+              <button
+                className="button secondary"
+                onClick={() => onJoin()}
+                aria-label="Unir familiares"
+              >
                 <Link2 size={16} />
                 <span>Unir familiares</span>
               </button>
-              <a className="button secondary" href="#/admin">
+              <a
+                className="button secondary"
+                href="#/admin"
+                aria-label="Administración"
+                aria-current={route === '/admin' ? 'page' : undefined}
+              >
                 <ShieldCheck size={16} />
                 <span>Administración</span>
               </a>
@@ -221,9 +254,10 @@ export default function App() {
         </nav>
       </header>
       {route === '/admin' ? (
-        <main className="admin-workspace">
+        <main id="main-content" tabIndex={-1} className="admin-workspace">
           {admin ? (
             <Admin
+              owner={Boolean(owner)}
               people={privatePeople.rows as unknown as Person[]}
               relationships={relationships}
               onError={onError}
@@ -237,7 +271,7 @@ export default function App() {
             <div className="restricted">
               <ShieldCheck size={35} />
               <h1>Administración del árbol</h1>
-              <p>Este ingreso está reservado al administrador.</p>
+              <p>Ingresá con tu cuenta de Google habilitada para administrar.</p>
               <button className="button primary" onClick={onAccess}>
                 Ingresar
               </button>
@@ -245,7 +279,12 @@ export default function App() {
           )}
         </main>
       ) : (
-        <main className="tree-stage" aria-label="Árbol genealógico a pantalla completa">
+        <main
+          id="main-content"
+          tabIndex={-1}
+          className="tree-stage"
+          aria-label="Árbol genealógico a pantalla completa"
+        >
           <Tree
             people={people}
             relationships={relationships}
@@ -468,7 +507,7 @@ function AdminLogin({
       <div className="modal-illustration">
         <ShieldCheck size={38} />
       </div>
-      <p>Este ingreso es únicamente para el administrador del árbol.</p>
+      <p>Ingresá con la cuenta de Google que el propietario habilitó para administrar el árbol.</p>
       <p>
         Para agregar un familiar o proponer una corrección no necesitás cuenta ni iniciar sesión.
       </p>

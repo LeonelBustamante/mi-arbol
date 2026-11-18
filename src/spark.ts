@@ -84,18 +84,52 @@ export function createSparkApi(db: Firestore, auth: Auth) {
   const ref = (path: string, id: string) => doc(db, path, id);
   async function verifyAdmin() {
     const user = auth.currentUser;
-    if (!user || user.email !== ownerEmail || !user.emailVerified)
+    if (!user || !user.email || !user.emailVerified)
       throw new Error('Ingresá con tu cuenta de Google administradora.');
     const token = await user.getIdTokenResult();
     if (token.signInProvider !== 'google.com') throw new Error('Ingresá con Google.');
+    if (user.email !== ownerEmail) {
+      const invitation = await getDocFromServer(ref('adminInvitations', user.email.toLowerCase()));
+      if (invitation.data()?.status !== 'active')
+        throw new Error(
+          'Esta cuenta no tiene una invitación activa. Pedile acceso al propietario.',
+        );
+    }
     const member = await getDocFromServer(ref('members', user.uid));
     if (!member.exists()) {
       const batch = writeBatch(db);
-      batch.set(member.ref, { uid: user.uid, email: ownerEmail, role: 'admin' });
+      batch.set(member.ref, { uid: user.uid, email: user.email.toLowerCase(), role: 'admin' });
       await batch.commit();
     } else if (member.data().role !== 'admin')
       throw new Error('Tu acceso administrativo fue revocado.');
     return { admin: true };
+  }
+  async function manageAdmin(input: unknown) {
+    const p = z
+      .object({
+        email: z.email().trim().toLowerCase().max(254),
+        status: z.enum(['active', 'revoked']),
+      })
+      .strict()
+      .parse(input);
+    if (auth.currentUser?.email !== ownerEmail)
+      throw new Error('Solo el propietario puede administrar los accesos.');
+    if (p.email === ownerEmail)
+      throw new Error('El acceso del propietario no se modifica desde este panel.');
+    return runTransaction(db, async (tx) => {
+      const invitation = ref('adminInvitations', p.email);
+      await tx.get(invitation);
+      tx.set(invitation, {
+        email: p.email,
+        status: p.status,
+        updatedBy: auth.currentUser!.uid,
+        updatedAt: serverTimestamp(),
+      });
+      audit(tx, `admin.${p.status === 'active' ? 'grant' : 'revoke'}`, p.email, {
+        status: p.status,
+      });
+      return { status: p.status };
+    });
   }
   async function submit(name: 'submissions' | 'privacyRequests', input: unknown) {
     const common = { requestId: uuid, contributor, website: z.literal('').default('') };
@@ -548,6 +582,8 @@ export function createSparkApi(db: Firestore, auth: Auth) {
     if (name === 'verifyAdmin') return verifyAdmin();
     if (!auth.currentUser) throw new Error('Ingresá como administrador.');
     switch (name) {
+      case 'manageAdmin':
+        return manageAdmin(input);
       case 'moderate':
         return moderate(input);
       case 'editPerson':

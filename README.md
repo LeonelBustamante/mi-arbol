@@ -10,7 +10,11 @@ Repositorio: https://github.com/LeonelBustamante/mi-arbol. Proyecto Firebase: `m
 
 Los visitantes ven el árbol público, agregan familiares y proponen correcciones al tocar un nodo, sin cuenta ni login. El nombre de quien carga el aporte es obligatorio; no se pide correo. La foto es opcional. Las fechas admiten DDMMYYYY, MMYYYY o YYYY, también con barras, conservando la precisión conocida.
 
-Solo `aleobustamante@gmail.com`, con **Google verificado**, puede administrar. En el primer ingreso, las reglas permiten exclusivamente a ese propietario crear su propio registro `admin`. Un registro revocado no se vuelve a otorgar automáticamente. Tener otro correo o un rol falso no da acceso.
+`aleobustamante@gmail.com` es el propietario. Desde **Administración → Administradores** puede habilitar otras cuentas de Google por correo, revocarlas y reactivarlas. Cada administrador habilitado puede revisar y aprobar aportes, editar el árbol y consultar los datos privados. Solo el propietario puede gestionar accesos; su cuenta queda protegida contra la revocación desde el panel.
+
+Para agregar un administrador: escribir su correo de Google, pulsar **Habilitar administrador** y compartirle el enlace del árbol. La persona ingresa con Google desde Administración. No se crean contraseñas ni se envían correos. El panel muestra si ya ingresó por primera vez. Al revocar se bloquean las siguientes lecturas y escrituras en el servidor, incluso si la sesión sigue abierta; los datos ya descargados no se pueden retirar del dispositivo.
+
+Las reglas requieren Google verificado, un registro `members/{uid}` con rol `admin` y, para los invitados, una habilitación activa en `adminInvitations/{email}`. Tener otro correo o un rol falso no da acceso. Los permisos se verifican en Firestore y la interfaz escucha las revocaciones.
 
 El panel abre cada aporte en un modal con colaborador, foto y comparación de los datos. **Aprobar y publicar** actualiza el árbol de forma atómica. Rechazar conserva el registro privado. Las correcciones desactualizadas se bloquean; los campos vacíos conservan datos privados que el visitante no podía consultar.
 
@@ -20,17 +24,18 @@ El administrador puede editar un nodo, unir familiares como padre, madre o parej
 
 `src/spark.ts` usa el SDK web de Firestore. La autorización real está en `firestore.rules`, independientemente de los controles visuales. No hay funciones desplegadas ni secretos en el navegador.
 
-| Colecciones                                           | Acceso público                                                     | Escritura                                           |
-| ----------------------------------------------------- | ------------------------------------------------------------------ | --------------------------------------------------- |
-| `publicPersons`                                       | Nombre y fecha de nacimiento aprobados                             | Administrador                                       |
-| `publicRelationships`, `publicPersonPhotos`           | Vínculos y fotos aprobados                                         | Administrador                                       |
-| `publicPersonVersions`                                | Número de revisión                                                 | Administrador                                       |
-| `persons`, `relationships`, `personPhotos`            | Sin acceso                                                         | Administrador                                       |
-| `submissions`, `submissionPhotos`, `privacyRequests`  | Sin lectura; solo crear solicitudes pendientes validadas           | Visitantes y moderación administrativa              |
-| `members`                                             | Solo registro propio autenticado                                   | Inicialización exclusiva del propietario verificado |
-| `auditLogs`, `relationshipOperations`, `system/graph` | Sin acceso                                                         | Administrador                                       |
-| `publicReceipts`                                      | Solo consulta individual por UUID, sin listado ni datos familiares | Creación atómica junto con el aporte                |
-| `publicLimits`                                        | Contadores globales de recepción                                   | Incremento validado junto con un aporte nuevo       |
+| Colecciones                                           | Acceso público                                                     | Escritura                                                    |
+| ----------------------------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------ |
+| `publicPersons`                                       | Nombre y fecha de nacimiento aprobados                             | Administrador                                                |
+| `publicRelationships`, `publicPersonPhotos`           | Vínculos y fotos aprobados                                         | Administrador                                                |
+| `publicPersonVersions`                                | Número de revisión                                                 | Administrador                                                |
+| `persons`, `relationships`, `personPhotos`            | Sin acceso                                                         | Administrador                                                |
+| `submissions`, `submissionPhotos`, `privacyRequests`  | Sin lectura; solo crear solicitudes pendientes validadas           | Visitantes y moderación administrativa                       |
+| `members`                                             | Registro propio autenticado; listado exclusivo del propietario     | Inicialización propia con Google verificado y habilitación   |
+| `adminInvitations`                                    | Invitación propia; listado exclusivo del propietario               | Solo el propietario: habilitación, revocación y reactivación |
+| `auditLogs`, `relationshipOperations`, `system/graph` | Sin acceso                                                         | Administrador                                                |
+| `publicReceipts`                                      | Solo consulta individual por UUID, sin listado ni datos familiares | Creación atómica junto con el aporte                         |
+| `publicLimits`                                        | Contadores globales de recepción                                   | Incremento validado junto con un aporte nuevo                |
 
 Cada propuesta se guarda junto con un recibo mínimo y un contador, en una transacción. Las reglas exigen los tres registros, campos y tamaños limitados, fecha del servidor, estado pendiente y colaborador declarado sin verificar. Reintentar el mismo envío no crea duplicados ni consume otra recepción; reutilizar su ID con otros datos se rechaza. El recibo contiene solo ID, tipo de colección y huella SHA-256; nunca nombres ni fotos.
 
@@ -102,3 +107,7 @@ El motor ELK organiza grupos familiares completos y reserva espacio para su desc
 El selector visible **Ver familia** permite alternar entre el árbol completo y la descendencia de cualquier grupo con hijos, incluyendo familias de generaciones intermedias. La vista incluye cónyuges y otros progenitores necesarios como contexto, sin incorporar automáticamente sus antepasados y hermanos. Los clics siguen abriendo la edición de la persona canónica. La distribución no cambia los parentescos guardados.
 
 El cálculo es asíncrono y se vuelve a ejecutar solo cuando cambia la estructura del árbol o la familia seleccionada. La búsqueda puede volver al árbol completo y centrar a la persona encontrada. Las figuras temporales de revisión con datos reales se guardan exclusivamente en `.local`, fuera del repositorio.
+
+## Interfaz y navegación
+
+La interfaz usa azul, fondos claros, estados con etiquetas de texto y foco de teclado visible. El panel incluye un resumen de aportes pendientes, privacidad y familiares. En celular, la cabecera separa la marca de las acciones, las acciones se pueden desplazar horizontalmente y los formularios se apilan; los controles principales tienen un mínimo de 44 px. Hay un enlace de salto al contenido para navegar con teclado.
