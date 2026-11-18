@@ -2874,3 +2874,19 @@ textarea::placeholder {
   overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
+
+@media (max-width: 720px) {
+  .located-notice {
+    bottom: 16px;
+    left: auto;
+    right: 12px;
+    transform: none;
+    max-width: calc(100% - 88px);
+    font-size: 12px;
+    padding: 4px 8px;
+  }
+  .tree-canvas:has(.located-notice) .canvas-caption,
+  .tree-canvas:has(.located-notice) .tree-legend {
+    display: none;
+  }
+}

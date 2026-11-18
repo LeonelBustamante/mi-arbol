@@ -284,23 +284,30 @@ function TreeCanvas({
       return;
     const position = graph.positions.get(locating);
     if (!position) return;
-    let cancelled = false;
-    const width = canvasRef.current?.clientWidth || 800;
-    const zoom = Math.min(1.1, (width - 48) / CARD_WIDTH);
-    void flow
-      .setCenter(position.x + CARD_WIDTH / 2, position.y + CARD_HEIGHT / 2, {
-        zoom: Math.max(0.4, zoom),
-        duration: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 0 : 500,
-      })
-      .then(() => {
-        if (!cancelled) {
-          setLocated(locating);
-          setLocating('');
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
+    const canvas = canvasRef.current;
+    const width = canvas?.clientWidth || 800;
+    const height = canvas?.clientHeight || 600;
+    const toolbar = canvas?.parentElement?.querySelector('.tree-toolbar');
+    const top =
+      toolbar && canvas
+        ? Math.max(
+            0,
+            toolbar.getBoundingClientRect().bottom - canvas.getBoundingClientRect().top + 16,
+          )
+        : 0;
+    const bottom = width <= 720 ? 90 : 120;
+    const zoom = Math.max(
+      0.4,
+      Math.min(1.1, (width - 48) / CARD_WIDTH, (height - top - bottom - 24) / CARD_HEIGHT),
+    );
+    const offset = (top - bottom) / 2;
+    // Position directly so browser animation throttling cannot leave the search unfinished.
+    void flow.setCenter(position.x + CARD_WIDTH / 2, position.y + CARD_HEIGHT / 2 - offset / zoom, {
+      zoom,
+      duration: 0,
+    });
+    setLocated(locating);
+    setLocating('');
   }, [locating, branch, arranging, graph, flow, people.length]);
   return (
     <>

@@ -177,3 +177,47 @@ it('el buscador localiza con Enter sin tildes y resalta la tarjeta', async () =>
   ).toBe(true);
   expect(screen.queryByLabelText('Mini Map')).toBeNull();
 });
+
+it('buscar a alguien fuera de la rama vuelve al árbol completo y permite localizarlo otra vez', async () => {
+  const people = [
+    { id: 'parent-a', fullName: 'ANA', birthDate: '' },
+    { id: 'child-a', fullName: 'ALICIA', birthDate: '' },
+    { id: 'parent-b', fullName: 'BEATRIZ', birthDate: '' },
+    { id: 'child-b', fullName: 'BRUNO', birthDate: '' },
+  ];
+  const user = userEvent.setup();
+  render(
+    <Tree
+      people={people}
+      relationships={[
+        { id: 'rel-a', from: 'parent-a', to: 'child-a', type: 'mother', certainty: 'confirmed' },
+        { id: 'rel-b', from: 'parent-b', to: 'child-b', type: 'mother', certainty: 'confirmed' },
+      ]}
+      privateView={false}
+      loading={false}
+      onSelect={vi.fn()}
+      onAccess={vi.fn()}
+      onJoin={vi.fn()}
+    />,
+  );
+  await screen.findByTestId('rf__node-child-b');
+  const branch = screen.getByRole('combobox', {
+    name: 'Familia o rama del árbol',
+  }) as HTMLSelectElement;
+  await user.selectOptions(branch, 'parent-a');
+  await waitFor(() => expect(screen.queryByTestId('rf__node-child-b')).toBeNull());
+  const input = screen.getByRole('combobox', { name: 'Buscar un familiar' });
+  await user.type(input, 'bruno');
+  await user.keyboard('{Enter}');
+  await waitFor(() =>
+    expect(
+      screen
+        .getByRole('button', { name: 'Proponer editar datos de BRUNO' })
+        .classList.contains('is-located'),
+    ).toBe(true),
+  );
+  expect(branch.value).toBe('all');
+  await user.type(input, 'bruno');
+  await user.keyboard('{Enter}');
+  await waitFor(() => expect(screen.getByRole('status').textContent).toContain('Ubicamos a BRUNO'));
+});
