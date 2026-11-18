@@ -69,9 +69,11 @@ export const dateSchema = z
       return z.NEVER;
     }
   });
+export const uppercaseName = (value: string) => value.trim().toLocaleUpperCase('es');
+export const nameSchema = text(160).transform(uppercaseName).pipe(z.string().max(160));
 export const personSchema = z
   .object({
-    fullName: text(160).min(2, 'Ingresá el nombre completo.'),
+    fullName: nameSchema.pipe(z.string().min(2, 'Ingresá el nombre completo.')),
     birthDate: dateSchema.default(''),
     birthPlace: text(200).default(''),
     deathDate: dateSchema.default(''),

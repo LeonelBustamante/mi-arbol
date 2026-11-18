@@ -169,7 +169,7 @@ describe('Spark sin Functions: reglas y operaciones reales', () => {
     const api = ownerApi();
     const result = (await api('createPerson', input)) as { id: string };
     expect((await getDoc(doc(publicDb(), 'publicPersons', result.id))).data()?.fullName).toBe(
-      'Alta directa',
+      'ALTA DIRECTA',
     );
     expect((await getDocs(collection(adminDb(), 'submissions'))).empty).toBe(true);
     expect(await api('createPerson', input)).toEqual(result);
@@ -221,7 +221,7 @@ describe('Spark sin Functions: reglas y operaciones reales', () => {
     expect((await getDoc(doc(adminDb(), 'submissions', p.requestId))).data()).toMatchObject({
       status: 'pending',
       hasPhoto: false,
-      submittedBy: { displayName: 'Colaborador sintético' },
+      submittedBy: { displayName: 'COLABORADOR SINTÉTICO' },
     });
     await assertFails(getDoc(doc(publicDb(), 'submissions', p.requestId)));
     expect((await getDocs(collection(publicDb(), 'publicPersons'))).empty).toBe(true);
@@ -238,7 +238,7 @@ describe('Spark sin Functions: reglas y operaciones reales', () => {
     await ownerApi()('moderate', { id: p.requestId, decision: 'approved' });
     expect((await getDocs(collection(publicDb(), 'publicPersons'))).docs[0].data()).toEqual({
       id: `person_${p.requestId}`,
-      fullName: 'Persona confirmada',
+      fullName: 'PERSONA CONFIRMADA',
       birthDate: '1910',
     });
     expect((await getDocs(collection(adminDb(), 'persons'))).size).toBe(1);
@@ -309,7 +309,7 @@ describe('Spark sin Functions: reglas y operaciones reales', () => {
     await guestApi()('submitContribution', p);
     await ownerApi()('moderate', { id: p.requestId, decision: 'approved' });
     expect((await getDoc(doc(adminDb(), 'persons', id))).data()).toMatchObject({
-      fullName: 'Persona corregida',
+      fullName: 'PERSONA CORREGIDA',
       birthDate: '1900',
       birthPlace: 'Dato privado',
       revision: 2,

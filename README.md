@@ -113,3 +113,9 @@ El cálculo es asíncrono y se vuelve a ejecutar solo cuando cambia la estructur
 La interfaz usa azul, fondos claros, estados con etiquetas de texto y foco de teclado visible. El panel incluye un resumen de aportes pendientes, privacidad y familiares. En celular, la cabecera separa la marca de las acciones, las acciones se pueden desplazar horizontalmente y los formularios se apilan; los controles principales tienen un mínimo de 44 px. Hay un enlace de salto al contenido para navegar con teclado.
 
 Los selectores de familiares de los modales de edición y parentesco permiten buscar por nombre sin distinguir mayúsculas ni tildes. Sus opciones y las familias del selector del árbol se ordenan alfabéticamente en español. La selección funciona con teclado (flechas y Enter); Escape cierra primero la lista y conserva el valor guardado si solo se estaba buscando.
+
+## Nombres en mayúsculas
+
+Los nombres de familiares y colaboradores se normalizan a mayúsculas al cargar, proponer, aprobar, editar e importar, conservando tildes y eñes. Las reglas de Firestore rechazan nuevos nombres en minúsculas. La búsqueda sigue funcionando sin distinguir mayúsculas. Los nombres que aparecen en registros históricos se muestran en mayúsculas conservando el contenido original de las auditorías.
+
+La migración de datos existentes se puede revisar con `node scripts/uppercase-names.cjs`; `--apply` crea un respaldo privado en `.local`, convierte únicamente campos de nombre y verifica el resultado. Usa el acceso existente de Firebase CLI al proyecto `mi-arbol-19103`. El lote es atómico y comprueba las versiones de los documentos para rechazar cambios concurrentes. No modifica vínculos, fotos, fechas, correos ni permisos.

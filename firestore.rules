@@ -22,7 +22,7 @@ service cloud.firestore {
     function person(p) {
       return p.keys().hasAll(['fullName','birthDate','birthPlace','deathDate','deathPlace','deceased','observations','sources','branch','certainty'])
         && p.keys().hasOnly(['fullName','birthDate','birthPlace','deathDate','deathPlace','deceased','observations','sources','branch','certainty'])
-        && text(p.fullName,160) && p.fullName.size() >= 2 && date(p.birthDate) && date(p.deathDate)
+        && p.fullName == p.fullName.upper() && text(p.fullName,160) && p.fullName.size() >= 2 && date(p.birthDate) && date(p.deathDate)
         && text(p.birthPlace,200) && text(p.deathPlace,200) && p.deceased is bool
         && text(p.observations,5000) && text(p.sources,3000) && certainty(p.certainty)
         && (p.branch == null || p.branch in ['Hecht','Elkin','Berger','Feldman','Bavor','Pennese','Posternak','Bustamante']);
@@ -35,7 +35,7 @@ service cloud.firestore {
         && certainty(l.fatherCertainty) && certainty(l.motherCertainty) && certainty(l.partnerCertainty);
     }
     function photo(p,id) { return p.keys().hasOnly(['id','dataUrl']) && p.id == id && text(p.dataUrl,180000) && p.dataUrl.size() >= 64 && p.dataUrl.matches('^data:image/jpeg;base64,[A-Za-z0-9+/=]+$'); }
-    function contributor(p) { return p.keys().hasOnly(['displayName','email','identityVerified']) && text(p.displayName,160) && text(p.email,254) && p.identityVerified == false; }
+    function contributor(p) { return p.keys().hasOnly(['displayName','email','identityVerified']) && text(p.displayName,160) && text(p.email,254) && p.displayName == p.displayName.upper() && p.identityVerified == false; }
     function pending(s,id) {
       return uuid(id) && s.requestId == id && s.status == 'pending' && s.identityVerified == false
         && contributor(s.submittedBy) && s.submittedAt == request.time && s.hasPhoto is bool
@@ -68,7 +68,7 @@ service cloud.firestore {
     match /publicPersons/{id} {
       allow read: if true;
       allow create, update: if admin() && graphEdit() && request.resource.data.keys().hasOnly(['id','fullName','birthDate'])
-        && request.resource.data.id == id && text(request.resource.data.fullName,160) && date(request.resource.data.birthDate);
+        && request.resource.data.id == id && request.resource.data.fullName == request.resource.data.fullName.upper() && text(request.resource.data.fullName,160) && date(request.resource.data.birthDate);
       allow delete: if admin() && graphEdit();
     }
     match /publicPersonVersions/{id} {
@@ -95,7 +95,8 @@ service cloud.firestore {
     }
     match /persons/{id} {
       allow read: if admin();
-      allow write: if admin() && graphEdit();
+      allow create, update: if admin() && graphEdit() && request.resource.data.fullName == request.resource.data.fullName.upper();
+      allow delete: if admin() && graphEdit();
     }
     match /relationships/{id} {
       allow read: if admin();

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { collection, doc, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from './firebase';
-import type { Row } from './model';
+import { uppercaseNames, type Row } from './model';
 export function useRows(path: string, enabled = true, owner?: string) {
   const [rows, setRows] = useState<Row[]>([]);
   const [error, setError] = useState('');
@@ -17,7 +17,7 @@ export function useRows(path: string, enabled = true, owner?: string) {
     return onSnapshot(
       source,
       (s) => {
-        setRows(s.docs.map((d) => ({ ...d.data(), id: d.id })));
+        setRows(s.docs.map((d) => uppercaseNames({ ...d.data(), id: d.id })));
         setLoading(false);
       },
       (e) => {

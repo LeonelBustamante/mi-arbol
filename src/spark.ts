@@ -13,6 +13,7 @@ import type { Auth } from 'firebase/auth';
 import { z } from 'zod';
 import {
   personSchema,
+  nameSchema,
   linksSchema,
   idSchema,
   relationshipSchema,
@@ -37,7 +38,7 @@ const image = z
   .regex(/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/);
 const contributor = z
   .object({
-    displayName: z.string().trim().max(160).default(''),
+    displayName: nameSchema.default(''),
     email: z.string().trim().max(254).default(''),
   })
   .strict();
@@ -144,11 +145,9 @@ export function createSparkApi(db: Firestore, auth: Auth) {
               links: linksSchema,
               photo: image.optional(),
               contributor: contributor.extend({
-                displayName: z
-                  .string()
-                  .trim()
-                  .min(2, 'Ingresá el nombre de quien lo carga.')
-                  .max(160),
+                displayName: nameSchema.pipe(
+                  z.string().min(2, 'Ingresá el nombre de quien lo carga.'),
+                ),
               }),
             })
             .strict()

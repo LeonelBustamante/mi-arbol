@@ -561,7 +561,11 @@ function Privacy({
       <form onSubmit={submit}>
         <label>
           Tu nombre (opcional)
-          <input maxLength={160} value={name} onChange={(e) => setName(e.target.value)} />
+          <input
+            maxLength={160}
+            value={name}
+            onChange={(e) => setName(e.target.value.toLocaleUpperCase('es'))}
+          />
         </label>
         <label>
           Correo para responderte (opcional)

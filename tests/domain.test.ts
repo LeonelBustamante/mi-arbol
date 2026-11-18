@@ -31,7 +31,7 @@ describe('privacidad y validación de personas', () => {
   it('proyecta exactamente tres campos públicos', () => {
     expect(publicPerson('one', person)).toEqual({
       id: 'one',
-      fullName: 'Persona de prueba',
+      fullName: 'PERSONA DE PRUEBA',
       birthDate: '',
     });
     expect(Object.keys(publicPerson('one', person)).sort()).toEqual([
@@ -253,4 +253,10 @@ describe('conexión explícita de nodos', () => {
       }),
     ).toThrow(/inexistente/);
   });
+});
+
+it('guarda nombres en mayúsculas conservando tildes y eñes', () => {
+  expect(personSchema.parse({ fullName: '  José Muñoz Pérez  ' }).fullName).toBe(
+    'JOSÉ MUÑOZ PÉREZ',
+  );
 });

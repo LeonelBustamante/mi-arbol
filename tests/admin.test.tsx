@@ -46,7 +46,7 @@ it('Revisar abre un modal con datos actuales y nuevos antes de publicar', async 
   const { user, success } = setup();
   await user.click(screen.getByRole('button', { name: 'Revisar' }));
   const dialog = screen.getByRole('dialog', { name: 'Revisar cambios propuestos' });
-  expect(within(dialog).getByText('Test Current')).toBeTruthy();
+  expect(within(dialog).getByText('TEST CURRENT')).toBeTruthy();
   expect(within(dialog).getByText('Test Updated')).toBeTruthy();
   expect(within(dialog).getByText('Test Contributor')).toBeTruthy();
   expect(mocks.call).not.toHaveBeenCalled();

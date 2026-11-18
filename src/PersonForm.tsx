@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Camera, Send, X } from 'lucide-react';
-import { personSchema, type PersonData } from '../functions/src/domain';
+import { personSchema, uppercaseName, type PersonData } from '../functions/src/domain';
 import { linksFor, isPerson, date, type TreePerson, type Relationship } from './model';
 import { configured, call, auth } from './firebase';
 import { preparePhoto } from './photo';
@@ -46,7 +46,7 @@ export default function PersonForm({
           : { fullName: 'Persona nueva' },
       ),
   );
-  const [name, setName] = useState(draft?.name ?? person?.fullName ?? '');
+  const [name, setName] = useState(uppercaseName(draft?.name ?? person?.fullName ?? ''));
   const [birthDate, setBirthDate] = useState(
     draft?.birthDate ?? (person?.birthDate ? date(person.birthDate) : ''),
   );
@@ -57,7 +57,7 @@ export default function PersonForm({
     () => draft?.links || linksFor(person?.id || '', relationships),
   );
   const [contributorName, setContributorName] = useState(
-    draft?.contributorName ?? (admin ? auth?.currentUser?.displayName || '' : ''),
+    uppercaseName(draft?.contributorName ?? (admin ? auth?.currentUser?.displayName || '' : '')),
   );
   const [website, setWebsite] = useState('');
   const [busy, setBusy] = useState(false);
@@ -144,7 +144,7 @@ export default function PersonForm({
             maxLength={160}
             autoComplete="name"
             value={contributorName}
-            onChange={(e) => setContributorName(e.target.value)}
+            onChange={(e) => setContributorName(e.target.value.toLocaleUpperCase('es'))}
             placeholder="Tu nombre y apellido"
           />
         </label>
@@ -156,7 +156,7 @@ export default function PersonForm({
           minLength={2}
           maxLength={160}
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(e) => setName(e.target.value.toLocaleUpperCase('es'))}
           placeholder="Nombre y apellido del familiar"
         />
       </label>

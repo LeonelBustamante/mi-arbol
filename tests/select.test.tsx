@@ -6,6 +6,7 @@ import userEvent from '@testing-library/user-event';
 import SearchSelect from '../src/SearchSelect';
 import PersonForm from '../src/PersonForm';
 import Modal from '../src/Modal';
+import { uppercaseNames } from '../src/model';
 const mocks = vi.hoisted(() => ({ call: vi.fn() }));
 vi.mock('../src/firebase', () => ({ configured: true, auth: null, call: mocks.call }));
 afterEach(() => {
@@ -89,7 +90,7 @@ it('el alta de un administrador usa guardado directo y no pide colaborador', asy
   await waitFor(() =>
     expect(mocks.call).toHaveBeenCalledWith(
       'createPerson',
-      expect.objectContaining({ person: expect.objectContaining({ fullName: 'Nuevo Familiar' }) }),
+      expect.objectContaining({ person: expect.objectContaining({ fullName: 'NUEVO FAMILIAR' }) }),
     ),
   );
   expect(mocks.call).toHaveBeenCalledOnce();
@@ -110,4 +111,24 @@ it('los visitantes conservan el envío para aprobación', async () => {
       expect.objectContaining({ kind: 'new' }),
     ),
   );
+});
+
+it('muestra nombres históricos en mayúsculas sin modificar correos ni fechas', () => {
+  class DateValue {
+    toDate() {
+      return new Date(0);
+    }
+  }
+  const timestamp = new DateValue();
+  const source = {
+    person: { fullName: 'María Núñez' },
+    submittedBy: { displayName: 'José', email: 'Jose@example.test' },
+    timestamp,
+  };
+  const normalized = uppercaseNames(source);
+  expect(normalized.person.fullName).toBe('MARÍA NÚÑEZ');
+  expect(normalized.submittedBy.displayName).toBe('JOSÉ');
+  expect(normalized.submittedBy.email).toBe('Jose@example.test');
+  expect(normalized.timestamp).toBe(timestamp);
+  expect(source.person.fullName).toBe('María Núñez');
 });
