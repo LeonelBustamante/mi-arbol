@@ -15,15 +15,14 @@ import { db, call } from './firebase';
 import { useRows, usePhoto } from './hooks';
 import Modal from './Modal';
 import AdminAccess from './AdminAccess';
+import HistoryDetails, { historyTitle, historySubject, historyDate } from './HistoryDetails';
 import { type Row, type Person, type Relationship, date } from './model';
 const tabs = [
   ['submissions', 'Aportes', FilePenLine],
   ['privacy', 'Privacidad', Trash2],
   ['history', 'Historial', History],
 ] as const;
-function time(value: any) {
-  return value?.toDate ? value.toDate().toLocaleString('es-AR') : 'Sin fecha';
-}
+const time = historyDate;
 function statusLabel(s: string) {
   return (
     (
@@ -67,6 +66,7 @@ export default function Admin({
   const history = useRows('auditLogs', tab === 'history');
   const rows =
     tab === 'submissions' ? submissions.rows : tab === 'privacy' ? privacy.rows : history.rows;
+  const currentSource = tab === 'submissions' ? submissions : tab === 'privacy' ? privacy : history;
   const readError = [submissions, privacy, history].find((r) => r.error)?.error;
   async function action(name: string, data: unknown, key: string) {
     setBusy(key);
@@ -188,7 +188,9 @@ export default function Admin({
         </div>
       )}
       <div className="admin-list" hidden={tab === 'admins'}>
-        {!rows.length ? (
+        {currentSource.loading ? (
+          <p role="status">Cargando registros…</p>
+        ) : !rows.length ? (
           <div className="list-empty">
             <Check size={28} />
             <h3>No hay registros en esta sección</h3>
@@ -223,20 +225,24 @@ export default function Admin({
                 </div>
                 <div className="row-text">
                   <strong>
-                    {row.person?.fullName ||
-                      row.displayName ||
-                      row.submittedBy?.displayName ||
-                      row.event ||
-                      row.action ||
-                      row.id}
+                    {tab === 'history'
+                      ? historyTitle(row)
+                      : row.person?.fullName ||
+                        row.displayName ||
+                        row.submittedBy?.displayName ||
+                        row.event ||
+                        row.action ||
+                        row.id}
                   </strong>
                   <small>
-                    {row.submittedBy?.displayName ||
-                      row.email ||
-                      row.submittedBy?.email ||
-                      row.actor?.email ||
-                      row.entityId ||
-                      row.type}{' '}
+                    {tab === 'history'
+                      ? historySubject(row, people, submissions.rows)
+                      : row.submittedBy?.displayName ||
+                        row.email ||
+                        row.submittedBy?.email ||
+                        row.actor?.email ||
+                        row.entityId ||
+                        row.type}{' '}
                     ·{' '}
                     {time(
                       row.requestedAt ||
@@ -253,12 +259,14 @@ export default function Admin({
                   )}
                 </div>
                 <span className={`status ${row.status || row.role || ''}`}>
-                  {statusLabel(row.status || row.role || 'Registro')}
+                  {tab === 'history'
+                    ? 'Registrado'
+                    : statusLabel(row.status || row.role || 'Registro')}
                 </span>
                 <div className="row-actions">
                   {['submissions', 'privacy', 'history'].includes(tab) && (
                     <button className="button small secondary" onClick={() => view(row)}>
-                      Revisar
+                      {tab === 'history' ? 'Ver detalle' : 'Revisar'}
                     </button>
                   )}
                 </div>
@@ -287,7 +295,7 @@ export default function Admin({
                 : 'Revisar cambios propuestos'
               : tab === 'privacy'
                 ? 'Solicitud de privacidad'
-                : 'Detalle del registro'
+                : 'Detalle de la actividad'
           }
           onClose={() => setSelected(null)}
           busy={Boolean(busy)}
@@ -457,7 +465,7 @@ export default function Admin({
                 )}
               </>
             ) : (
-              <pre>{JSON.stringify(selected, null, 2)}</pre>
+              <HistoryDetails row={selected} people={people} submissions={submissions.rows} />
             )}
           </div>
         </Modal>

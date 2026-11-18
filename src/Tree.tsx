@@ -1,10 +1,9 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import {
   ReactFlow,
   ReactFlowProvider,
   Background,
   Controls,
-  MiniMap,
   Handle,
   Position,
   useReactFlow,
@@ -28,6 +27,7 @@ type Data = {
   person: TreePerson;
   color: string;
   privateView: boolean;
+  located: boolean;
 };
 function PersonNode({ data }: NodeProps<Node<Data>>) {
   const p = data.person;
@@ -35,7 +35,7 @@ function PersonNode({ data }: NodeProps<Node<Data>>) {
   return (
     <button
       type="button"
-      className="person-node nodrag nopan"
+      className={`person-node nodrag nopan ${data.located ? 'is-located' : ''}`}
       style={{ '--branch': data.color } as React.CSSProperties}
       aria-label={
         data.privateView ? `Ver y unir a ${p.fullName}` : `Proponer editar datos de ${p.fullName}`
@@ -160,6 +160,10 @@ function TreeCanvas({
   const [arranging, setArranging] = useState(true);
   const [layoutError, setLayoutError] = useState('');
   const [locating, setLocating] = useState('');
+  const [located, setLocated] = useState('');
+  const [showLocationNotice, setShowLocationNotice] = useState(false);
+  const [searchIndex, setSearchIndex] = useState(-1);
+  const canvasRef = useRef<HTMLDivElement>(null);
   const [rootOptions, setRootOptions] = useState<FamilyTreeLayout['roots']>([]);
   const flow = useReactFlow();
   const structureKey = JSON.stringify([
@@ -222,9 +226,10 @@ function TreeCanvas({
                   ]
                 : graph!.personColors.get(p.id) || colors[0],
             privateView,
+            located: located === p.id,
           },
         })),
-    [people, graph, privateView],
+    [people, graph, privateView, located],
   );
   const edges = useMemo<Edge<KinshipData>[]>(
     () =>
@@ -250,32 +255,53 @@ function TreeCanvas({
     .sort()
     .join('|');
   useEffect(() => {
-    if (locating) return;
+    if (locating || located) return;
     const timer = setTimeout(() => flow.fitView({ padding: 0.25, maxZoom: 1, duration: 400 }), 100);
     return () => clearTimeout(timer);
-  }, [fitKey, flow]);
-  const matches = search
-    ? people.filter((p) =>
-        p.fullName.toLocaleLowerCase('es').includes(search.toLocaleLowerCase('es')),
-      )
+  }, [fitKey, flow, locating, located]);
+  const normalizeSearch = (s: string) =>
+    s
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLocaleLowerCase('es')
+      .trim()
+      .replace(/\s+/g, ' ');
+  const matches = search.trim()
+    ? people
+        .filter((p) => normalizeSearch(p.fullName).includes(normalizeSearch(search)))
+        .sort((a, b) => spanishOrder.compare(a.fullName, b.fullName))
     : [];
   function locate(id: string) {
+    setLocated('');
+    setLocating(id);
+    setShowLocationNotice(true);
     setBranch('all');
     setSearch('');
-    setLocating(id);
+    setSearchIndex(-1);
   }
   useEffect(() => {
-    if (
-      locating &&
-      branch === 'all' &&
-      !arranging &&
-      graph?.positions.size === people.length &&
-      graph.positions.has(locating)
-    ) {
-      void flow.fitView({ nodes: [{ id: locating }], maxZoom: 1.1, duration: 500 });
-      setLocating('');
-    }
-  }, [locating, arranging, graph, flow]);
+    if (!locating || branch !== 'all' || arranging || graph?.positions.size !== people.length)
+      return;
+    const position = graph.positions.get(locating);
+    if (!position) return;
+    let cancelled = false;
+    const width = canvasRef.current?.clientWidth || 800;
+    const zoom = Math.min(1.1, (width - 48) / CARD_WIDTH);
+    void flow
+      .setCenter(position.x + CARD_WIDTH / 2, position.y + CARD_HEIGHT / 2, {
+        zoom: Math.max(0.4, zoom),
+        duration: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 0 : 500,
+      })
+      .then(() => {
+        if (!cancelled) {
+          setLocated(locating);
+          setLocating('');
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [locating, branch, arranging, graph, flow, people.length]);
   return (
     <>
       <div className="tree-toolbar">
@@ -285,7 +311,33 @@ function TreeCanvas({
             aria-label="Buscar un familiar"
             placeholder="Buscar un familiar por su nombre…"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            role="combobox"
+            aria-expanded={Boolean(search.trim())}
+            aria-controls="tree-search-results"
+            aria-autocomplete="list"
+            aria-activedescendant={
+              searchIndex >= 0 && matches[searchIndex]
+                ? `tree-search-${matches[searchIndex].id}`
+                : undefined
+            }
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setSearchIndex(-1);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                setSearchIndex((i) =>
+                  e.key === 'ArrowDown' ? Math.min(i + 1, matches.length - 1) : Math.max(i - 1, 0),
+                );
+              } else if (e.key === 'Enter' && matches.length) {
+                e.preventDefault();
+                locate(matches[Math.max(0, searchIndex)].id);
+              } else if (e.key === 'Escape') {
+                setSearch('');
+                setSearchIndex(-1);
+              }
+            }}
           />
           {search && (
             <button
@@ -297,10 +349,22 @@ function TreeCanvas({
             </button>
           )}
           {search && (
-            <div className="search-results">
+            <div
+              className="search-results"
+              role="listbox"
+              id="tree-search-results"
+              aria-label="Familiares encontrados"
+            >
               {matches.length ? (
-                matches.map((p) => (
-                  <button key={p.id} onClick={() => locate(p.id)}>
+                matches.map((p, index) => (
+                  <button
+                    key={p.id}
+                    id={`tree-search-${p.id}`}
+                    role="option"
+                    aria-selected={index === searchIndex}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => locate(p.id)}
+                  >
                     {p.fullName}
                     <ArrowUpRight size={14} />
                   </button>
@@ -319,6 +383,8 @@ function TreeCanvas({
             onChange={(e) => {
               setBranch(e.target.value);
               setSearch('');
+              setLocated('');
+              setLocating('');
             }}
           >
             <option value="all">Árbol completo</option>
@@ -336,12 +402,16 @@ function TreeCanvas({
           className="icon-button center-button"
           title="Centrar árbol"
           aria-label="Centrar árbol"
-          onClick={() => flow.fitView({ padding: 0.25, maxZoom: 1, duration: 500 })}
+          onClick={() => {
+            setLocated('');
+            setLocating('');
+            void flow.fitView({ padding: 0.25, maxZoom: 1, duration: 500 });
+          }}
         >
           <LocateFixed size={19} />
         </button>
       </div>
-      <div className="tree-canvas">
+      <div className="tree-canvas" ref={canvasRef}>
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -371,8 +441,20 @@ function TreeCanvas({
         >
           <Background color="#d9dfd2" gap={25} size={1} />
           <Controls showInteractive={false} />
-          {nodes.length > 8 && <MiniMap pannable zoomable nodeColor="#a5b69b" />}
         </ReactFlow>
+        {located && showLocationNotice && (
+          <div className="located-notice" role="status">
+            Ubicamos a {people.find((p) => p.id === located)?.fullName}. Su tarjeta está resaltada.
+            <button
+              type="button"
+              className="icon-button"
+              aria-label="Cerrar aviso de ubicación"
+              onClick={() => setShowLocationNotice(false)}
+            >
+              <X size={16} />
+            </button>
+          </div>
+        )}
         {arranging && people.length > 0 && (
           <div className="layout-progress" role="status">
             Ordenando las ramas familiares…
@@ -402,10 +484,7 @@ function TreeCanvas({
             )}
           </div>
         )}
-        <div
-          className={`tree-legend ${nodes.length > 8 ? 'with-minimap' : ''}`}
-          aria-label="Referencias de los vínculos"
-        >
+        <div className="tree-legend" aria-label="Referencias de los vínculos">
           <span>
             <i className="legend-couple" /> Pareja
           </span>

@@ -2337,15 +2337,8 @@ dd {
   border-left: 2px solid #6b86a8;
   border-right: 2px solid #6b86a8;
 }
-.tree-legend.with-minimap {
-  right: 240px;
-}
 @media (max-width: 720px) {
-  .react-flow__minimap {
-    display: none;
-  }
-  .tree-legend,
-  .tree-legend.with-minimap {
+  .tree-legend {
     right: 12px;
     bottom: 74px;
     font-size: 10px;
@@ -2830,4 +2823,54 @@ textarea::placeholder {
   padding: 12px;
   margin: 0;
   color: #52647c;
+}
+
+.person-node.is-located {
+  outline: 4px solid #1265d6;
+  outline-offset: 5px;
+  box-shadow: 0 0 0 10px #dbeafe;
+}
+.search-results [aria-selected='true'] {
+  background: #e6effb;
+  color: #163e71;
+}
+.located-notice {
+  position: absolute;
+  left: 50%;
+  bottom: 100px;
+  transform: translateX(-50%);
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  max-width: min(520px, calc(100% - 32px));
+  border: 1px solid #bacce2;
+  border-radius: 10px;
+  background: #fff;
+  color: #163e71;
+  font-size: 14px;
+  box-shadow: 0 4px 20px #182d491a;
+}
+.history-detail dl > div {
+  display: grid;
+  grid-template-columns: minmax(100px, 1fr) 2fr;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid #dbe4ef;
+}
+.history-detail dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.history-change {
+  border: 1px solid #dbe4ef;
+  border-radius: 10px;
+  padding: 16px;
+  margin: 12px 0;
+}
+.history-change p {
+  margin-bottom: 6px;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }

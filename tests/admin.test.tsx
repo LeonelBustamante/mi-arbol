@@ -119,3 +119,43 @@ it('el propietario habilita una cuenta y confirma antes de revocarla', async () 
     }),
   );
 });
+
+it('el historial traduce acciones y muestra cambios legibles sin identificadores ni JSON', async () => {
+  mocks.rows.auditLogs = [
+    {
+      id: 'audit-one',
+      action: 'person.edit',
+      entityId: 'private-person-id',
+      actorUid: 'opaque-uid',
+      timestamp: { seconds: 1730000000 },
+      changes: {
+        before: { fullName: 'ANA', birthPlace: 'Salta' },
+        after: { fullName: 'ANA', birthPlace: 'Córdoba' },
+      },
+    },
+  ];
+  const user = userEvent.setup();
+  render(
+    <Admin people={[]} relationships={[]} onError={vi.fn()} onSuccess={vi.fn()} onEdit={vi.fn()} />,
+  );
+  await user.click(screen.getByRole('button', { name: 'Historial' }));
+  expect(screen.getByText('Datos de un familiar actualizados')).toBeTruthy();
+  expect(screen.getByText(/^ANA ·/)).toBeTruthy();
+  expect(screen.queryByText(/private-person-id|person\.edit/)).toBeNull();
+  await user.click(screen.getByRole('button', { name: 'Ver detalle' }));
+  const dialog = screen.getByRole('dialog', { name: 'Detalle de la actividad' });
+  expect(within(dialog).getByText(/Salta/)).toBeTruthy();
+  expect(within(dialog).getByText(/Córdoba/)).toBeTruthy();
+  expect(dialog.querySelector('pre')).toBeNull();
+});
+it('el historial admite registros antiguos sin campos de comparación', async () => {
+  mocks.rows.auditLogs = [{ id: 'old-audit', action: 'legacy.unknown', changes: null }];
+  const user = userEvent.setup();
+  render(
+    <Admin people={[]} relationships={[]} onError={vi.fn()} onSuccess={vi.fn()} onEdit={vi.fn()} />,
+  );
+  await user.click(screen.getByRole('button', { name: 'Historial' }));
+  await user.click(screen.getByRole('button', { name: 'Ver detalle' }));
+  expect(screen.getByText('Fecha no disponible')).toBeTruthy();
+  expect(screen.getByText(/La actividad quedó registrada correctamente/)).toBeTruthy();
+});

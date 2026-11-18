@@ -142,3 +142,38 @@ it('elegir una familia muestra solo su rama y mantiene la edición del nodo', as
   await userEvent.click(screen.getByRole('button', { name: 'Proponer editar datos de Hijo A' }));
   expect(select).toHaveBeenCalledWith(c);
 });
+
+it('el buscador localiza con Enter sin tildes y resalta la tarjeta', async () => {
+  const user = userEvent.setup();
+  render(
+    <Tree
+      people={[{ id: 'jose', fullName: 'JOSÉ NÚÑEZ', birthDate: '' }]}
+      relationships={[]}
+      privateView={false}
+      loading={false}
+      onSelect={vi.fn()}
+      onAccess={vi.fn()}
+      onJoin={vi.fn()}
+    />,
+  );
+  await screen.findByTestId('rf__node-jose');
+  const input = screen.getByRole('combobox', { name: 'Buscar un familiar' });
+  await user.type(input, 'jose nunez');
+  expect(screen.getByRole('option', { name: 'JOSÉ NÚÑEZ' })).toBeTruthy();
+  await user.keyboard('{Enter}');
+  await waitFor(() =>
+    expect(
+      screen
+        .getByRole('button', { name: 'Proponer editar datos de JOSÉ NÚÑEZ' })
+        .classList.contains('is-located'),
+    ).toBe(true),
+  );
+  expect(screen.getByRole('status').textContent).toContain('Ubicamos a JOSÉ NÚÑEZ');
+  await user.click(screen.getByRole('button', { name: 'Cerrar aviso de ubicación' }));
+  expect(
+    screen
+      .getByRole('button', { name: 'Proponer editar datos de JOSÉ NÚÑEZ' })
+      .classList.contains('is-located'),
+  ).toBe(true);
+  expect(screen.queryByLabelText('Mini Map')).toBeNull();
+});
