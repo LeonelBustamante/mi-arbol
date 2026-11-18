@@ -2737,3 +2737,97 @@ textarea::placeholder {
   color: #5a6b80;
   opacity: 1;
 }
+
+/* Searchable family selectors. */
+.search-select {
+  position: relative;
+  min-width: 0;
+  margin-bottom: 18px;
+}
+.search-select > label {
+  display: block;
+  margin-bottom: 8px;
+}
+.search-select-control {
+  display: flex;
+  align-items: center;
+  border: 1px solid #bacce2;
+  border-radius: 8px;
+  background: #fff;
+  padding-left: 12px;
+  color: #52647c;
+}
+.search-select-control:focus-within {
+  outline: 3px solid #1265d6;
+  outline-offset: 2px;
+}
+.search-select-control input {
+  min-width: 0;
+  width: 100%;
+  flex: 1;
+  border: 0;
+  background: transparent;
+  margin: 0;
+  padding: 12px 8px;
+  min-height: 46px;
+  font-size: 16px;
+  color: #182d49;
+}
+.search-select-control input:focus-visible {
+  outline: none;
+}
+.search-select-control button {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  min-height: 44px;
+  border: 0;
+  border-radius: 8px;
+  color: #214775;
+  background: transparent;
+}
+.search-select-popup {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 5px;
+  z-index: 35;
+  border: 1px solid #bacce2;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px #182d4926;
+  background: #fff;
+  overflow: hidden;
+}
+.search-select-popup ul {
+  list-style: none;
+  padding: 4px;
+  margin: 0;
+  max-height: min(240px, 35dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.search-select-popup li {
+  padding: 12px;
+  min-height: 44px;
+  font-size: 15px;
+  line-height: 1.4;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+  border-radius: 6px;
+}
+.search-select-popup li:hover,
+.search-select-popup .is-highlighted {
+  background: #e6effb;
+  color: #163e71;
+}
+.search-select-popup [aria-selected='true'] {
+  font-weight: 700;
+  color: #174d96;
+}
+.search-select-popup p {
+  font-size: 14px;
+  padding: 12px;
+  margin: 0;
+  color: #52647c;
+}

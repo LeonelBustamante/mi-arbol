@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { GitFork, ArrowDown, Trash2 } from 'lucide-react';
 import { call } from './firebase';
+import SearchSelect, { spanishOrder } from './SearchSelect';
 import type { Relationship, TreePerson } from './model';
 const kinds = [
   ['father', 'es padre de'],
@@ -84,24 +85,18 @@ export default function RelationshipForm({
         Elegí dos familiares y el vínculo entre ellos. Solo el administrador puede publicar estos
         cambios.
       </p>
-      <label>
-        Primer familiar
-        <select
-          required
-          value={from}
-          onChange={(e) => {
-            setFrom(e.target.value);
-            setReplace(false);
-          }}
-        >
-          <option value="">Seleccionar familiar</option>
-          {people.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.fullName}
-            </option>
-          ))}
-        </select>
-      </label>
+      <SearchSelect
+        label="Primer familiar"
+        required
+        value={from}
+        options={people.map((p) => ({ value: p.id, label: p.fullName }))}
+        emptyLabel="Seleccionar familiar"
+        onChange={(value) => {
+          setFrom(value);
+          if (value === to) setTo('');
+          setReplace(false);
+        }}
+      />
       <label>
         Parentesco
         <select
@@ -113,33 +108,29 @@ export default function RelationshipForm({
           }}
         >
           <option value="">Elegir parentesco</option>
-          {kinds.map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label>
-        Segundo familiar
-        <select
-          required
-          value={to}
-          onChange={(e) => {
-            setTo(e.target.value);
-            setReplace(false);
-          }}
-        >
-          <option value="">Seleccionar familiar</option>
-          {people
-            .filter((p) => p.id !== from)
-            .map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.fullName}
+          {kinds
+            .slice()
+            .sort((a, b) => spanishOrder.compare(a[1], b[1]))
+            .map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
               </option>
             ))}
         </select>
       </label>
+      <SearchSelect
+        label="Segundo familiar"
+        required
+        value={to}
+        options={people
+          .filter((p) => p.id !== from)
+          .map((p) => ({ value: p.id, label: p.fullName }))}
+        emptyLabel="Seleccionar familiar"
+        onChange={(value) => {
+          setTo(value);
+          setReplace(false);
+        }}
+      />
       {from && to && kind && from !== to && (
         <div className="relationship-preview">
           <strong>{name(from)}</strong>

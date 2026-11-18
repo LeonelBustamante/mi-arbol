@@ -160,6 +160,61 @@ describe('Spark sin Functions: reglas y operaciones reales', () => {
       }),
     );
   });
+  it('el administrador crea y publica directamente, sin propuesta pendiente y sin duplicar al reintentar', async () => {
+    const input = {
+      requestId: crypto.randomUUID(),
+      person: person('Alta directa'),
+      links: linksSchema.parse({}),
+    };
+    const api = ownerApi();
+    const result = (await api('createPerson', input)) as { id: string };
+    expect((await getDoc(doc(publicDb(), 'publicPersons', result.id))).data()?.fullName).toBe(
+      'Alta directa',
+    );
+    expect((await getDocs(collection(adminDb(), 'submissions'))).empty).toBe(true);
+    expect(await api('createPerson', input)).toEqual(result);
+    expect((await getDocs(collection(adminDb(), 'persons'))).size).toBe(1);
+    await expect(api('createPerson', { ...input, person: person('Otro nombre') })).rejects.toThrow(
+      'identificador',
+    );
+    await expect(
+      guestApi()('createPerson', { ...input, requestId: crypto.randomUUID() }),
+    ).rejects.toThrow();
+  });
+  it('el alta directa por invitado valida duplicados y vínculos; las hipótesis quedan privadas', async () => {
+    const email = 'creador@example.test';
+    await ownerApi()('manageAdmin', { email, status: 'active' });
+    const db = env.authenticatedContext('creator', { ...owner, email }).firestore();
+    const api = createSparkApi(db, fakeAuth('creator', email));
+    await api('verifyAdmin');
+    const input = {
+      requestId: crypto.randomUUID(),
+      person: person('Hipótesis directa', { certainty: 'hypothesis' }),
+      links: linksSchema.parse({}),
+    };
+    const result = (await api('createPerson', input)) as { id: string };
+    expect((await getDoc(doc(db, 'persons', result.id))).exists()).toBe(true);
+    expect((await getDoc(doc(publicDb(), 'publicPersons', result.id))).exists()).toBe(false);
+    await expect(api('createPerson', { ...input, requestId: crypto.randomUUID() })).rejects.toThrow(
+      'duplicado',
+    );
+    await expect(
+      api('createPerson', {
+        ...input,
+        requestId: crypto.randomUUID(),
+        person: person('Vínculo inválido'),
+        links: { ...input.links, father: 'missing' },
+      }),
+    ).rejects.toThrow();
+    await ownerApi()('manageAdmin', { email, status: 'revoked' });
+    await expect(
+      api('createPerson', {
+        ...input,
+        requestId: crypto.randomUUID(),
+        person: person('Ya revocado'),
+      }),
+    ).rejects.toThrow();
+  });
   it('guarda un aporte sin login ni foto; es privado y no publica ni crea correo', async () => {
     const p = proposal();
     await guestApi()('submitContribution', p);

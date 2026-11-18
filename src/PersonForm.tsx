@@ -5,6 +5,7 @@ import { linksFor, isPerson, date, type TreePerson, type Relationship } from './
 import { configured, call, auth } from './firebase';
 import { preparePhoto } from './photo';
 import { readDraft, trackDraft, clearDraft } from './draft';
+import SearchSelect from './SearchSelect';
 export default function PersonForm({
   person,
   people,
@@ -20,42 +21,60 @@ export default function PersonForm({
   onDone: (message: string) => void;
   onError: (e: unknown) => void;
 }) {
-  const draft=readDraft(person?.id||'new');
-  const [form, setForm] = useState<PersonData>(() =>draft?.form||
-    personSchema.parse(
-      person
-        ? Object.fromEntries(
-            Object.entries(person).filter(([k]) =>
-              [
-                'fullName',
-                'birthDate',
-                'birthPlace',
-                'deathDate',
-                'deathPlace',
-                'deceased',
-                'observations',
-                'sources',
-                'branch',
-                'certainty',
-              ].includes(k),
-            ),
-          )
-        : { fullName: 'Persona nueva' },
-    ),
+  const draft = readDraft(person?.id || 'new');
+  const [form, setForm] = useState<PersonData>(
+    () =>
+      draft?.form ||
+      personSchema.parse(
+        person
+          ? Object.fromEntries(
+              Object.entries(person).filter(([k]) =>
+                [
+                  'fullName',
+                  'birthDate',
+                  'birthPlace',
+                  'deathDate',
+                  'deathPlace',
+                  'deceased',
+                  'observations',
+                  'sources',
+                  'branch',
+                  'certainty',
+                ].includes(k),
+              ),
+            )
+          : { fullName: 'Persona nueva' },
+      ),
   );
-  const [name, setName] = useState(draft?.name??person?.fullName??'');
-  const [birthDate, setBirthDate] = useState(draft?.birthDate??(person?.birthDate ? date(person.birthDate) : ''));
-  const [deathDate, setDeathDate] = useState(draft?.deathDate??(form.deathDate ? date(form.deathDate) : ''));
-  const [links, setLinks] = useState(() =>draft?.links||linksFor(person?.id || '', relationships));
+  const [name, setName] = useState(draft?.name ?? person?.fullName ?? '');
+  const [birthDate, setBirthDate] = useState(
+    draft?.birthDate ?? (person?.birthDate ? date(person.birthDate) : ''),
+  );
+  const [deathDate, setDeathDate] = useState(
+    draft?.deathDate ?? (form.deathDate ? date(form.deathDate) : ''),
+  );
+  const [links, setLinks] = useState(
+    () => draft?.links || linksFor(person?.id || '', relationships),
+  );
   const [contributorName, setContributorName] = useState(
-    draft?.contributorName??(admin ? auth?.currentUser?.displayName || '' : ''),
+    draft?.contributorName ?? (admin ? auth?.currentUser?.displayName || '' : ''),
   );
   const [website, setWebsite] = useState('');
   const [busy, setBusy] = useState(false);
   const [photoBusy, setPhotoBusy] = useState(false);
-  const [photo, setPhoto] = useState(draft?.photo||'');
-  const [requestId] = useState(() =>draft?.requestId||crypto.randomUUID());
-  trackDraft({key:person?.id||'new',form,name,birthDate,deathDate,links,contributorName,photo,requestId});
+  const [photo, setPhoto] = useState(draft?.photo || '');
+  const [requestId] = useState(() => draft?.requestId || crypto.randomUUID());
+  trackDraft({
+    key: person?.id || 'new',
+    form,
+    name,
+    birthDate,
+    deathDate,
+    links,
+    contributorName,
+    photo,
+    requestId,
+  });
   const field = (key: keyof PersonData, value: string | boolean) =>
     setForm((prev) => ({ ...prev, [key]: value }));
   async function choosePhoto(file?: File) {
@@ -87,6 +106,8 @@ export default function PersonForm({
           links,
           ...(photo ? { photo } : {}),
         });
+      else if (admin)
+        await call('createPerson', { requestId, person: data, links, ...(photo ? { photo } : {}) });
       else
         await call('submitContribution', {
           requestId,
@@ -100,8 +121,10 @@ export default function PersonForm({
         });
       clearDraft();
       onDone(
-        admin && person
-          ? 'Cambios publicados.'
+        admin
+          ? person
+            ? 'Cambios publicados.'
+            : 'Familiar agregado al árbol.'
           : 'Gracias, tu aporte quedó pendiente de aprobación.',
       );
     } catch (e) {
@@ -112,7 +135,7 @@ export default function PersonForm({
   }
   return (
     <form onSubmit={submit} className="person-form simplified-form">
-      {!(admin && person) && (
+      {!admin && (
         <label>
           Nombre de quien lo carga <span className="required">*</span>
           <input
@@ -199,22 +222,16 @@ export default function PersonForm({
       </div>
       <div className="form-grid relation-inputs">
         {(['father', 'mother', 'partner'] as const).map((type) => (
-          <label key={type}>
-            {{ father: 'Padre', mother: 'Madre', partner: 'Pareja' }[type]}
-            <select
-              value={links[type]}
-              onChange={(e) => setLinks({ ...links, [type]: e.target.value })}
-            >
-              <option value="">No sé / sin registrar</option>
-              {people
-                .filter((p) => p.id !== person?.id)
-                .map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.fullName}
-                  </option>
-                ))}
-            </select>
-          </label>
+          <SearchSelect
+            key={type}
+            label={{ father: 'Padre', mother: 'Madre', partner: 'Pareja' }[type]}
+            value={links[type]}
+            emptyLabel="No sé / sin registrar"
+            options={people
+              .filter((p) => p.id !== person?.id)
+              .map((p) => ({ value: p.id, label: p.fullName }))}
+            onChange={(value) => setLinks({ ...links, [type]: value })}
+          />
         ))}
       </div>
       <label className="check-label deceased-checkbox">
@@ -272,14 +289,25 @@ export default function PersonForm({
         />
       </label>
       <p className="form-review-note">
-        {admin && person
-          ? 'Los cambios se publican al guardar.'
+        {admin
+          ? 'Los datos confirmados se publican al guardar, sin revisión adicional. Las hipótesis permanecen privadas.'
           : 'El aporte y la foto se publican únicamente después de la revisión del administrador.'}
       </p>
-      {!configured&&<p className="error-banner" role="status">La foto es opcional. El envío necesita una conexión al servidor; estamos preparando el modo local.</p>}
+      {!configured && (
+        <p className="error-banner" role="status">
+          La foto es opcional. El envío necesita una conexión al servidor; estamos preparando el
+          modo local.
+        </p>
+      )}
       <button className="button primary full-width" disabled={busy || photoBusy || !configured}>
         <Send size={16} />
-        {busy ? 'Guardando…' : admin && person ? 'Guardar cambios' : 'Enviar para revisión'}
+        {busy
+          ? 'Guardando…'
+          : admin
+            ? person
+              ? 'Guardar cambios'
+              : 'Agregar familiar'
+            : 'Enviar para revisión'}
       </button>
     </form>
   );

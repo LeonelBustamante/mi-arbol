@@ -422,6 +422,58 @@ export function createSparkApi(db: Firestore, auth: Auth) {
       return { status: p.decision };
     });
   }
+  async function createPerson(input: unknown) {
+    const p = z
+      .object({
+        requestId: uuid,
+        person: personSchema,
+        links: linksSchema,
+        photo: image.optional(),
+      })
+      .strict()
+      .parse(input);
+    const photo = await cleanPhoto(p.photo);
+    const fingerprint = Array.from(
+      new Uint8Array(
+        await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(p))),
+      ),
+    )
+      .map((x) => x.toString(16).padStart(2, '0'))
+      .join('');
+    return graphMutation(async (tx, graph) => {
+      const operation = await tx.get(ref('personOperations', p.requestId));
+      if (operation.exists()) {
+        if (operation.data().fingerprint !== fingerprint)
+          throw new Error(
+            'El identificador ya corresponde a otro familiar. Abrí un formulario nuevo.',
+          );
+        return operation.data().result;
+      }
+      const target = `person_${p.requestId}`;
+      if (graph.people.some((x) => x.id === target))
+        throw new Error('Ese familiar ya existe. Abrí un formulario nuevo.');
+      const { after } = check(graph.people, graph.relations, target, p.person, p.links);
+      const person = { ...p.person, id: target, revision: 1 };
+      writePerson(tx, person, photo);
+      writeGraph(
+        tx,
+        graph.relations,
+        after,
+        [...graph.people, person],
+        graph.version,
+        graph.people,
+      );
+      audit(tx, 'person.create', target, { after: p.person });
+      const result = { id: target };
+      tx.set(operation.ref, {
+        fingerprint,
+        result,
+        actorUid: auth.currentUser!.uid,
+        createdAt: serverTimestamp(),
+      });
+      return result;
+    });
+  }
   async function editPerson(input: unknown) {
     const p = z
       .object({
@@ -586,6 +638,8 @@ export function createSparkApi(db: Firestore, auth: Auth) {
         return manageAdmin(input);
       case 'moderate':
         return moderate(input);
+      case 'createPerson':
+        return createPerson(input);
       case 'editPerson':
         return editPerson(input);
       case 'manageRelationship':

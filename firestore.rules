@@ -165,6 +165,14 @@ service cloud.firestore {
       allow create: if admin() && request.resource.data.keys().hasOnly(['actorUid','action','entityId','changes','timestamp'])
         && request.resource.data.actorUid == request.auth.uid && request.resource.data.timestamp == request.time;
     }
+    match /personOperations/{id} {
+      allow read: if admin();
+      allow create: if admin() && graphEdit() && uuid(id)
+        && request.resource.data.keys().hasOnly(['fingerprint','result','actorUid','createdAt'])
+        && request.resource.data.fingerprint is string && request.resource.data.fingerprint.matches('^[a-f0-9]{64}$')
+        && request.resource.data.result.keys().hasOnly(['id']) && request.resource.data.result.id == 'person_' + id
+        && request.resource.data.actorUid == request.auth.uid && request.resource.data.createdAt == request.time;
+    }
     match /relationshipOperations/{id} { allow read, create: if admin(); }
     match /accessRequests/{id} { allow read: if admin(); }
     match /{document=**} { allow read, write: if false; }

@@ -18,7 +18,7 @@ Las reglas requieren Google verificado, un registro `members/{uid}` con rol `adm
 
 El panel abre cada aporte en un modal con colaborador, foto y comparación de los datos. **Aprobar y publicar** actualiza el árbol de forma atómica. Rechazar conserva el registro privado. Las correcciones desactualizadas se bloquean; los campos vacíos conservan datos privados que el visitante no podía consultar.
 
-El administrador puede editar un nodo, unir familiares como padre, madre o pareja y quitar vínculos. Se validan referencias, duplicados, reemplazos explícitos y ciclos. Los vínculos y personas «Creo que...» permanecen privados. Las operaciones de parentesco actualizan las revisiones de las personas afectadas para evitar que una corrección antigua deshaga vínculos recientes.
+El administrador puede crear familiares directamente, sin una propuesta pendiente de aprobación, editar un nodo, unir familiares como padre, madre o pareja y quitar vínculos. Las altas confirmadas se publican al guardar; las hipótesis permanecen privadas. Los reintentos de la misma alta no crean duplicados. Se validan referencias, duplicados, reemplazos explícitos y ciclos. Los vínculos y personas «Creo que...» permanecen privados. Las operaciones de parentesco actualizan las revisiones de las personas afectadas para evitar que una corrección antigua deshaga vínculos recientes.
 
 ## Seguridad y guardado
 
@@ -111,3 +111,5 @@ El cálculo es asíncrono y se vuelve a ejecutar solo cuando cambia la estructur
 ## Interfaz y navegación
 
 La interfaz usa azul, fondos claros, estados con etiquetas de texto y foco de teclado visible. El panel incluye un resumen de aportes pendientes, privacidad y familiares. En celular, la cabecera separa la marca de las acciones, las acciones se pueden desplazar horizontalmente y los formularios se apilan; los controles principales tienen un mínimo de 44 px. Hay un enlace de salto al contenido para navegar con teclado.
+
+Los selectores de familiares de los modales de edición y parentesco permiten buscar por nombre sin distinguir mayúsculas ni tildes. Sus opciones y las familias del selector del árbol se ordenan alfabéticamente en español. La selección funciona con teclado (flechas y Enter); Escape cierra primero la lista y conserva el valor guardado si solo se estaba buscando.

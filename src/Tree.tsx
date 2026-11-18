@@ -15,6 +15,7 @@ import {
   type EdgeProps,
 } from '@xyflow/react';
 import { LocateFixed, Search, Sprout, ArrowUpRight, X } from 'lucide-react';
+import { spanishOrder } from './SearchSelect';
 import { colors, date, layout, type TreePerson, type Relationship } from './model';
 import {
   CARD_WIDTH,
@@ -321,11 +322,14 @@ function TreeCanvas({
             }}
           >
             <option value="all">Árbol completo</option>
-            {rootOptions.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.label}
-              </option>
-            ))}
+            {rootOptions
+              .slice()
+              .sort((a, b) => spanishOrder.compare(a.label, b.label))
+              .map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.label}
+                </option>
+              ))}
           </select>
         </label>
         <button
